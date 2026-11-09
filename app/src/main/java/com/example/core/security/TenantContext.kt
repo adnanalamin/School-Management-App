@@ -20,6 +20,12 @@ object TenantContext {
     private val _activeUserId = MutableStateFlow<String?>("usr_admin_demo")
     val activeUserId: StateFlow<String?> = _activeUserId.asStateFlow()
 
+    private val _customGrants = MutableStateFlow<Set<Permission>>(emptySet())
+    val customGrants: StateFlow<Set<Permission>> = _customGrants.asStateFlow()
+
+    private val _customRevocations = MutableStateFlow<Set<Permission>>(emptySet())
+    val customRevocations: StateFlow<Set<Permission>> = _customRevocations.asStateFlow()
+
     /**
      * Set the verified tenant school context after authentication.
      */
@@ -27,6 +33,7 @@ object TenantContext {
         _activeSchoolId.value = schoolId
         _activeUserRole.value = role
         _activeUserId.value = userId
+        resetOverrides()
     }
 
     /**
@@ -36,6 +43,31 @@ object TenantContext {
         _activeSchoolId.value = null
         _activeUserRole.value = UserRole.STUDENT
         _activeUserId.value = null
+        resetOverrides()
+    }
+
+    /**
+     * Dynamic RBAC Testing: Temporarily grant a permission in the active session.
+     */
+    fun grantPermission(permission: Permission) {
+        _customRevocations.value = _customRevocations.value - permission
+        _customGrants.value = _customGrants.value + permission
+    }
+
+    /**
+     * Dynamic RBAC Testing: Temporarily revoke a permission from the active session.
+     */
+    fun revokePermission(permission: Permission) {
+        _customGrants.value = _customGrants.value - permission
+        _customRevocations.value = _customRevocations.value + permission
+    }
+
+    /**
+     * Resets any dynamic overrides back to pure role-based permissions.
+     */
+    fun resetOverrides() {
+        _customGrants.value = emptySet()
+        _customRevocations.value = emptySet()
     }
 
     /**
@@ -48,9 +80,12 @@ object TenantContext {
 
     /**
      * Verifies if current user has the specified permission.
+     * Evaluates base role permissions + custom grants - custom revocations.
      */
     fun hasPermission(permission: Permission): Boolean {
-        val permissions = Permission.getPermissionsForRole(_activeUserRole.value)
-        return permissions.contains(permission)
+        if (_customRevocations.value.contains(permission)) return false
+        if (_customGrants.value.contains(permission)) return true
+        val basePermissions = Permission.getPermissionsForRole(_activeUserRole.value)
+        return basePermissions.contains(permission)
     }
 }

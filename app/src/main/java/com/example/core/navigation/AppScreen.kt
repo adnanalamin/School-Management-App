@@ -102,6 +102,12 @@ sealed class AppScreen(
         icon = Icons.Default.Apartment
     )
 
+    data object RbacMatrix : AppScreen(
+        route = "rbac_matrix",
+        title = "RBAC & Permission Engine",
+        icon = Icons.Default.Settings
+    )
+
     companion object {
         fun fromRoute(route: String?): AppScreen {
             return when (route?.substringBefore("?")) {
@@ -118,6 +124,7 @@ sealed class AppScreen(
                 DesignSystem.route -> DesignSystem
                 Foundation.route -> Foundation
                 TenantArchitecture.route -> TenantArchitecture
+                RbacMatrix.route -> RbacMatrix
                 else -> MainDashboard
             }
         }

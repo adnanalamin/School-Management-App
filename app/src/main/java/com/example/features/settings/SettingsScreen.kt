@@ -53,6 +53,7 @@ fun SettingsScreen(
     onNavigateToFoundation: () -> Unit,
     onNavigateToDesignSystem: () -> Unit,
     onNavigateToTenantArchitecture: () -> Unit = {},
+    onNavigateToRbacMatrix: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -263,6 +264,13 @@ fun SettingsScreen(
                         subtitle = "Inspect 15 isolated subcollections, cross-tenant firewall & penetration test",
                         onClick = onNavigateToTenantArchitecture,
                         testTag = "nav_to_tenant_architecture_link"
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    SettingClickableRow(
+                        title = "RBAC & Permission Engine (Phase 7)",
+                        subtitle = "9 user roles, 36 granular permissions, active role switching & audit simulator",
+                        onClick = onNavigateToRbacMatrix,
+                        testTag = "nav_to_rbac_matrix_link"
                     )
                 }
             }

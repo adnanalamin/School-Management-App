@@ -388,6 +388,138 @@ class ExampleUnitTest {
         assertNotNull(vm.uiState.value.simulatedAttackMessage)
         assertTrue(vm.uiState.value.simulatedAttackMessage!!.contains("BLOCKED"))
     }
+
+    @Test
+    fun verifyAllNineRolesDefinedWithDistinctSecurityLevels() {
+        val allRoles = UserRole.entries
+        assertEquals(9, allRoles.size)
+
+        val hierarchical = com.example.core.security.RbacEngine.getAllRolesHierarchical()
+        assertEquals(9, hierarchical.size)
+        assertEquals(UserRole.SUPER_ADMIN, hierarchical.first())
+        assertEquals(100, hierarchical.first().level)
+        assertEquals(UserRole.STUDENT, hierarchical.last())
+        assertEquals(10, hierarchical.last().level)
+
+        // Verify all 9 roles exist in hierarchy
+        assertTrue(allRoles.contains(UserRole.SUPER_ADMIN))
+        assertTrue(allRoles.contains(UserRole.SCHOOL_ADMIN))
+        assertTrue(allRoles.contains(UserRole.TEACHER))
+        assertTrue(allRoles.contains(UserRole.ACCOUNTANT))
+        assertTrue(allRoles.contains(UserRole.LIBRARIAN))
+        assertTrue(allRoles.contains(UserRole.TRANSPORT_MANAGER))
+        assertTrue(allRoles.contains(UserRole.STAFF))
+        assertTrue(allRoles.contains(UserRole.PARENT))
+        assertTrue(allRoles.contains(UserRole.STUDENT))
+    }
+
+    @Test
+    fun verifyGranularPermissionsCategoryCoverage() {
+        val categories = com.example.core.security.RbacEngine.categories
+        assertEquals(12, categories.size)
+
+        val totalCategorized = categories.values.flatten().toSet()
+        assertEquals(Permission.entries.size, totalCategorized.size)
+    }
+
+    @Test
+    fun verifyRolePermissionsLeastPrivilegePrinciple() {
+        // Super Admin has all permissions
+        val superAdminPerms = com.example.core.security.RbacEngine.getPermissionsForRole(UserRole.SUPER_ADMIN)
+        assertEquals(Permission.entries.size, superAdminPerms.size)
+
+        // Accountant has finance permissions but not academic or admin ones
+        val accountantPerms = com.example.core.security.RbacEngine.getPermissionsForRole(UserRole.ACCOUNTANT)
+        assertTrue(accountantPerms.contains(Permission.FEES_VIEW))
+        assertTrue(accountantPerms.contains(Permission.FEES_COLLECT))
+        assertTrue(accountantPerms.contains(Permission.FEES_REPORTS))
+        assertFalse(accountantPerms.contains(Permission.STUDENTS_DELETE))
+        assertFalse(accountantPerms.contains(Permission.TEACHERS_CREATE))
+        assertFalse(accountantPerms.contains(Permission.ATTENDANCE_MARK))
+
+        // Librarian has library permissions only
+        val librarianPerms = com.example.core.security.RbacEngine.getPermissionsForRole(UserRole.LIBRARIAN)
+        assertTrue(librarianPerms.contains(Permission.LIBRARY_VIEW))
+        assertTrue(librarianPerms.contains(Permission.LIBRARY_MANAGE))
+        assertFalse(librarianPerms.contains(Permission.FEES_COLLECT))
+        assertFalse(librarianPerms.contains(Permission.EXAMS_MANAGE))
+
+        // Transport Manager has transport permissions only
+        val transportPerms = com.example.core.security.RbacEngine.getPermissionsForRole(UserRole.TRANSPORT_MANAGER)
+        assertTrue(transportPerms.contains(Permission.TRANSPORT_VIEW))
+        assertTrue(transportPerms.contains(Permission.TRANSPORT_MANAGE))
+        assertFalse(transportPerms.contains(Permission.RESULTS_ENTER))
+        assertFalse(transportPerms.contains(Permission.FEES_COLLECT))
+
+        // Parent has ward visibility but cannot collect fees or edit grades
+        val parentPerms = com.example.core.security.RbacEngine.getPermissionsForRole(UserRole.PARENT)
+        assertTrue(parentPerms.contains(Permission.FEES_VIEW))
+        assertTrue(parentPerms.contains(Permission.RESULTS_VIEW))
+        assertTrue(parentPerms.contains(Permission.ATTENDANCE_VIEW))
+        assertFalse(parentPerms.contains(Permission.FEES_COLLECT))
+        assertFalse(parentPerms.contains(Permission.RESULTS_ENTER))
+
+        // Student can submit homework but cannot create it
+        val studentPerms = com.example.core.security.RbacEngine.getPermissionsForRole(UserRole.STUDENT)
+        assertTrue(studentPerms.contains(Permission.HOMEWORK_SUBMIT))
+        assertFalse(studentPerms.contains(Permission.HOMEWORK_CREATE))
+        assertFalse(studentPerms.contains(Permission.FEES_COLLECT))
+    }
+
+    @Test
+    fun verifyRbacEngineActionEvaluationAuditTrail() {
+        val deniedResult = com.example.core.security.RbacEngine.evaluateAction(UserRole.STUDENT, Permission.FEES_COLLECT)
+        assertFalse(deniedResult.isAllowed)
+        assertTrue(deniedResult.reason.contains("Access Denied"))
+
+        val allowedResult = com.example.core.security.RbacEngine.evaluateAction(UserRole.ACCOUNTANT, Permission.FEES_COLLECT)
+        assertTrue(allowedResult.isAllowed)
+        assertTrue(allowedResult.reason.contains("is permitted"))
+    }
+
+    @Test
+    fun verifyDynamicPermissionOverridesAndActiveSessionSwitching() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.STUDENT, "usr_student_01")
+        assertFalse(TenantContext.hasPermission(Permission.FEES_COLLECT))
+        assertTrue(TenantContext.hasPermission(Permission.HOMEWORK_SUBMIT))
+
+        // Dynamic Grant Override
+        TenantContext.grantPermission(Permission.FEES_COLLECT)
+        assertTrue(TenantContext.hasPermission(Permission.FEES_COLLECT))
+
+        // Dynamic Revoke Override
+        TenantContext.revokePermission(Permission.HOMEWORK_SUBMIT)
+        assertFalse(TenantContext.hasPermission(Permission.HOMEWORK_SUBMIT))
+
+        // Reset
+        TenantContext.resetOverrides()
+        assertFalse(TenantContext.hasPermission(Permission.FEES_COLLECT))
+        assertTrue(TenantContext.hasPermission(Permission.HOMEWORK_SUBMIT))
+    }
+
+    @Test
+    fun verifyRbacMatrixViewModelInspectionAndFiltering() {
+        val vm = com.example.features.rbac.RbacMatrixViewModel()
+        assertEquals(UserRole.SCHOOL_ADMIN, vm.uiState.value.inspectedRole)
+
+        vm.selectInspectedRole(UserRole.ACCOUNTANT)
+        assertEquals(UserRole.ACCOUNTANT, vm.uiState.value.inspectedRole)
+        assertTrue(vm.uiState.value.inspectedRolePermissions.contains(Permission.FEES_COLLECT))
+
+        vm.setSearchQuery("fees")
+        val filtered = vm.getFilteredPermissions()
+        assertTrue(filtered.all { it.key.contains("fees") || it.description.contains("fee", ignoreCase = true) })
+
+        // Simulation
+        vm.setSimulationPermission(Permission.STUDENTS_DELETE)
+        assertNotNull(vm.uiState.value.simulationResult)
+        assertFalse(vm.uiState.value.simulationResult!!.isAllowed)
+
+        // Session role assumption
+        vm.assumeRoleForActiveSession(UserRole.TEACHER)
+        assertEquals(UserRole.TEACHER, TenantContext.activeUserRole.value)
+    }
 }
+
 
 

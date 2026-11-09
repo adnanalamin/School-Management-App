@@ -48,6 +48,8 @@ import com.example.features.settings.SettingsScreen
 import com.example.features.settings.SettingsViewModel
 import com.example.features.tenant.TenantArchitectureScreen
 import com.example.features.tenant.TenantArchitectureViewModel
+import com.example.features.rbac.RbacMatrixScreen
+import com.example.features.rbac.RbacMatrixViewModel
 import com.example.features.splash.SplashScreen
 import com.example.features.splash.SplashViewModel
 import com.example.shared.components.EduBottomNavBar
@@ -279,7 +281,8 @@ fun AppNavGraph(
                     viewModel = settingsViewModel,
                     onNavigateToFoundation = { navController.navigate(AppScreen.Foundation.route) },
                     onNavigateToDesignSystem = { navController.navigate(AppScreen.DesignSystem.route) },
-                    onNavigateToTenantArchitecture = { navController.navigate(AppScreen.TenantArchitecture.route) }
+                    onNavigateToTenantArchitecture = { navController.navigate(AppScreen.TenantArchitecture.route) },
+                    onNavigateToRbacMatrix = { navController.navigate(AppScreen.RbacMatrix.route) }
                 )
             }
 
@@ -304,6 +307,16 @@ fun AppNavGraph(
                 BackHandler { navController.popBackStack() }
                 TenantArchitectureScreen(
                     viewModel = tenantViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            // Role-Based Access Control (RBAC) & Permission Engine (Phase 7)
+            composable(AppScreen.RbacMatrix.route) {
+                val rbacViewModel: RbacMatrixViewModel = viewModel()
+                BackHandler { navController.popBackStack() }
+                RbacMatrixScreen(
+                    viewModel = rbacViewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
