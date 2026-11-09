@@ -1,10 +1,15 @@
 package com.example.features.auth
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.core.error.AppError
+import com.example.core.error.ErrorHandler
 import com.example.core.security.TenantContext
 import com.example.core.security.UserRole
 import com.example.core.utils.ValidationUtils
+import com.example.features.auth.data.FirebaseAuthRepository
+import com.example.features.auth.domain.AuthRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,10 +25,18 @@ data class LoginUiState(
     val rememberMe: Boolean = true,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val isLoginSuccessful: Boolean = false
+    val isLoginSuccessful: Boolean = false,
+    val showForgotPasswordDialog: Boolean = false,
+    val resetEmail: String = "",
+    val resetEmailSent: Boolean = false,
+    val resetEmailError: String? = null,
+    val isResetLoading: Boolean = false,
+    val emailVerificationRequired: Boolean = false
 )
 
-class LoginViewModel : ViewModel() {
+class LoginViewModel(
+    private val authRepositoryProvider: ((Context) -> AuthRepository)? = null
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
@@ -66,6 +79,55 @@ class LoginViewModel : ViewModel() {
         }
     }
 
+    fun openForgotPasswordDialog() {
+        _uiState.update {
+            it.copy(
+                showForgotPasswordDialog = true,
+                resetEmail = it.email,
+                resetEmailSent = false,
+                resetEmailError = null
+            )
+        }
+    }
+
+    fun dismissForgotPasswordDialog() {
+        _uiState.update { it.copy(showForgotPasswordDialog = false, resetEmailError = null) }
+    }
+
+    fun onResetEmailChanged(email: String) {
+        _uiState.update { it.copy(resetEmail = email, resetEmailError = null) }
+    }
+
+    fun sendPasswordReset(context: Context) {
+        val email = _uiState.value.resetEmail.trim()
+        if (!ValidationUtils.isValidEmail(email)) {
+            _uiState.update { it.copy(resetEmailError = "Please enter a valid email address.") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isResetLoading = true, resetEmailError = null) }
+            val repo = authRepositoryProvider?.invoke(context) ?: FirebaseAuthRepository(context)
+            val result = repo.sendPasswordResetEmail(email)
+            if (result.isSuccess) {
+                _uiState.update { it.copy(isResetLoading = false, resetEmailSent = true) }
+            } else {
+                val error = result.exceptionOrNull()
+                val message = error?.message ?: "Failed to send reset link. Please check network connection."
+                _uiState.update { it.copy(isResetLoading = false, resetEmailError = message) }
+            }
+        }
+    }
+
+    fun onGoogleSignInSuccess(onSuccess: () -> Unit) {
+        _uiState.update { it.copy(isLoading = false, isLoginSuccessful = true, errorMessage = null) }
+        onSuccess()
+    }
+
+    fun onGoogleSignInError(error: String) {
+        _uiState.update { it.copy(isLoading = false, errorMessage = error) }
+    }
+
     fun signIn(onSuccess: () -> Unit) {
         val state = _uiState.value
         if (state.schoolCode.isBlank()) {
@@ -83,7 +145,7 @@ class LoginViewModel : ViewModel() {
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            delay(1000) // Simulate authentication & tenant verification
+            delay(500)
 
             // Lock tenant security boundary
             TenantContext.setTenant(

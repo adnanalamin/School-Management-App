@@ -3,6 +3,7 @@ package com.example
 import androidx.compose.ui.unit.dp
 import com.example.core.config.AppConfig
 import com.example.core.config.EnvironmentType
+import com.example.core.error.AppError
 import com.example.core.navigation.AppScreen
 import com.example.core.navigation.RouteGuard
 import com.example.core.security.Permission
@@ -12,8 +13,11 @@ import com.example.core.theme.EduElevation
 import com.example.core.theme.EduSpacing
 import com.example.core.utils.ValidationUtils
 import com.example.features.auth.LoginViewModel
+import com.example.features.auth.RegisterViewModel
+import com.example.features.auth.domain.AuthResult
 import com.example.features.designsystem.DesignSystemViewModel
 import com.example.features.onboarding.OnboardingViewModel
+import com.example.shared.models.UserProfile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -22,7 +26,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * JVM unit tests for EduManage core architecture, RBAC, Design System tokens, and ViewModels.
+ * JVM unit tests for EduManage core architecture, RBAC, Design System tokens, Auth flows, and ViewModels.
  */
 class ExampleUnitTest {
 
@@ -140,4 +144,160 @@ class ExampleUnitTest {
         assertEquals("student.amina@oxfordacademy.edu", viewModel.uiState.value.email)
         assertEquals(UserRole.STUDENT, viewModel.uiState.value.selectedRole)
     }
+
+    @Test
+    fun verifyAuthResultPolymorphism() {
+        val profile = UserProfile(
+            uid = "usr_test_100",
+            email = "admin@oxf.edu",
+            displayName = "Admin Test",
+            schoolId = "sch_oxf",
+            role = UserRole.SCHOOL_ADMIN
+        )
+        val success: AuthResult<UserProfile> = AuthResult.Success(profile)
+        assertTrue(success is AuthResult.Success)
+        assertEquals("usr_test_100", (success as AuthResult.Success).data.uid)
+
+        val failure: AuthResult<UserProfile> = AuthResult.Failure(AppError.AuthenticationError("Invalid credentials"))
+        assertTrue(failure is AuthResult.Failure)
+        assertEquals("Invalid credentials", (failure as AuthResult.Failure).error.message)
+    }
+
+    @Test
+    fun verifyForgotPasswordDialogLifecycle() {
+        val viewModel = LoginViewModel()
+        assertFalse(viewModel.uiState.value.showForgotPasswordDialog)
+
+        viewModel.openForgotPasswordDialog()
+        assertTrue(viewModel.uiState.value.showForgotPasswordDialog)
+        assertEquals(viewModel.uiState.value.email, viewModel.uiState.value.resetEmail)
+
+        viewModel.onResetEmailChanged("newemail@school.edu")
+        assertEquals("newemail@school.edu", viewModel.uiState.value.resetEmail)
+
+        viewModel.dismissForgotPasswordDialog()
+        assertFalse(viewModel.uiState.value.showForgotPasswordDialog)
+    }
+
+    @Test
+    fun verifyRegisterViewModelValidation() {
+        val viewModel = RegisterViewModel()
+        var successTriggered = false
+
+        // Empty form submission should produce validation error
+        viewModel.registerSchool { successTriggered = true }
+        assertFalse(successTriggered)
+        assertNotNull(viewModel.uiState.value.errorMessage)
+        assertEquals("School Name is required.", viewModel.uiState.value.errorMessage)
+
+        viewModel.onSchoolNameChanged("Heritage High School")
+        viewModel.onSchoolCodeChanged("HHS101")
+        viewModel.onAdminNameChanged("Principal Jane")
+        viewModel.onEmailChanged("principal@hhs.edu")
+        viewModel.onPasswordChanged("Secure@2026")
+
+        assertEquals("Heritage High School", viewModel.uiState.value.schoolName)
+        assertEquals("HHS101", viewModel.uiState.value.schoolCode)
+        assertNull(viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun verifyUniqueSchoolIdGenerationFormat() {
+        val repo = com.example.features.schools.data.FirebaseSchoolRepository()
+        val id1 = repo.generateUniqueSchoolId("CIS101")
+        val id2 = repo.generateUniqueSchoolId("CIS101")
+
+        assertTrue(id1.startsWith("sch_cis101_"))
+        assertTrue(id2.startsWith("sch_cis101_"))
+        assertFalse(id1 == id2) // Guaranteed unique timestamp and random suffix
+    }
+
+    @Test
+    fun verifyTenantSchoolFirestoreSerializationAndDeserialization() {
+        val school = com.example.shared.models.TenantSchool(
+            id = "sch_cambridge_101",
+            name = "Cambridge High School",
+            code = "CHS-101",
+            slogan = "Inspiring Minds",
+            address = "12 King's Parade",
+            phone = "+44 1223 337733",
+            email = "admissions@cambridgehigh.ac.uk",
+            website = "https://cambridgehigh.ac.uk",
+            establishedYear = 1988,
+            schoolType = "Secondary High School",
+            academicSession = "2026-2027",
+            currency = "GBP",
+            currencySymbol = "£",
+            timezone = "Europe/London",
+            status = com.example.shared.models.SchoolStatus.ACTIVE,
+            adminUid = "usr_cambridge_admin"
+        )
+
+        val map = school.toFirestoreMap()
+        assertEquals("sch_cambridge_101", map["id"])
+        assertEquals("CHS-101", map["code"])
+        assertEquals("GBP", map["currency"])
+        assertEquals("Europe/London", map["timezone"])
+        assertEquals(1988, map["establishedYear"])
+
+        val deserialized = com.example.shared.models.TenantSchool.fromFirestoreMap(school.id, map)
+        assertEquals(school.id, deserialized.id)
+        assertEquals(school.name, deserialized.name)
+        assertEquals(school.code, deserialized.code)
+        assertEquals(school.currency, deserialized.currency)
+        assertEquals(school.currencySymbol, deserialized.currencySymbol)
+        assertEquals(school.establishedYear, deserialized.establishedYear)
+        assertEquals(school.schoolType, deserialized.schoolType)
+        assertEquals(school.adminUid, deserialized.adminUid)
+    }
+
+    @Test
+    fun verifySchoolRegistrationViewModelStepProgressionAndValidation() {
+        val vm = com.example.features.schools.presentation.SchoolRegistrationViewModel()
+        assertEquals(0, vm.uiState.value.currentStep)
+
+        // Attempting to advance Step 0 without school name or code should fail
+        assertFalse(vm.nextStep())
+        assertNotNull(vm.uiState.value.errorMessage)
+
+        vm.onSchoolNameChanged("St. Jude's International School")
+        vm.onSchoolCodeChanged("STJ101")
+        vm.onEstablishedYearChanged("2010")
+        assertNull(vm.uiState.value.errorMessage)
+
+        // Advance to Step 1 (Contact)
+        assertTrue(vm.nextStep())
+        assertEquals(1, vm.uiState.value.currentStep)
+
+        // Attempting Step 1 without address should fail
+        assertFalse(vm.nextStep())
+        assertEquals("Campus Address is required.", vm.uiState.value.errorMessage)
+
+        vm.onAddressChanged("45 St Jude Avenue, Metro")
+        vm.onPhoneChanged("+1 555 987 6543")
+        vm.onEmailChanged("contact@stjudes.edu")
+        assertNull(vm.uiState.value.errorMessage)
+
+        // Advance to Step 2 (Operations & Region)
+        assertTrue(vm.nextStep())
+        assertEquals(2, vm.uiState.value.currentStep)
+
+        // Step 2 has valid pre-populated defaults
+        assertTrue(vm.nextStep())
+        assertEquals(3, vm.uiState.value.currentStep)
+
+        // Step 3 (Admin Info)
+        assertFalse(vm.nextStep())
+        assertEquals("Administrator full name is required.", vm.uiState.value.errorMessage)
+
+        vm.onAdminNameChanged("Father Thomas")
+        vm.onAdminEmailChanged("thomas@stjudes.edu")
+        vm.onAdminPasswordChanged("StJudes@2026")
+        assertNull(vm.uiState.value.errorMessage)
+
+        // Test step rollback
+        assertTrue(vm.previousStep())
+        assertEquals(2, vm.uiState.value.currentStep)
+    }
 }
+

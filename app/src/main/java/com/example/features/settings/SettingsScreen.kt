@@ -14,11 +14,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Apartment
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -27,17 +25,20 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.example.core.theme.EduShapes
 import com.example.core.theme.EduSpacing
 import com.example.shared.components.BadgeType
 import com.example.shared.components.EduBadge
@@ -54,6 +55,11 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.loadSchoolDetails(context)
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize().testTag("settings_screen"),
@@ -79,6 +85,51 @@ fun SettingsScreen(
                 .padding(horizontal = EduSpacing.lg),
             verticalArrangement = Arrangement.spacedBy(EduSpacing.md)
         ) {
+            // Institution & Tenant Profile
+            item {
+                Text(
+                    text = "Institution & Tenant Profile",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            item {
+                EduCard(testTag = "card_school_settings") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = uiState.activeSchool.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Code: ${uiState.activeSchool.code} • ID: ${uiState.activeSchool.id}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        EduBadge(text = uiState.activeSchool.schoolType, type = BadgeType.PRIMARY)
+                    }
+
+                    Spacer(modifier = Modifier.height(EduSpacing.xs))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Spacer(modifier = Modifier.height(EduSpacing.xs))
+
+                    SettingClickableRow(
+                        title = "View Complete School Metadata",
+                        subtitle = "Inspect 12-field SaaS tenant configuration, currency & timezone",
+                        onClick = { viewModel.openSchoolDetailsDialog() },
+                        testTag = "btn_view_school_metadata"
+                    )
+                }
+            }
+
             // General Preferences
             item {
                 Text(
@@ -217,6 +268,60 @@ fun SettingsScreen(
                 )
             }
         }
+    }
+
+    // School Details Metadata Modal Dialog
+    if (uiState.showSchoolDetailsDialog) {
+        val s = uiState.activeSchool
+        AlertDialog(
+            onDismissRequest = { viewModel.closeSchoolDetailsDialog() },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.School, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text(text = "School Tenant Metadata", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(EduSpacing.xs)) {
+                    MetaRow("Tenant ID", s.id)
+                    MetaRow("School Name", s.name)
+                    MetaRow("School Code", s.code)
+                    MetaRow("Category", s.schoolType)
+                    MetaRow("Established", "${s.establishedYear}")
+                    MetaRow("Address", s.address)
+                    MetaRow("Telephone", s.phone)
+                    MetaRow("Email", s.email)
+                    MetaRow("Website", s.website.ifBlank { "N/A" })
+                    MetaRow("Academic Session", s.academicSession)
+                    MetaRow("Currency", "${s.currency} (${s.currencySymbol})")
+                    MetaRow("Timezone", s.timezone)
+                    MetaRow("Status", s.status.name)
+                }
+            },
+            confirmButton = {
+                EduButton(
+                    text = "Close",
+                    onClick = { viewModel.closeSchoolDetailsDialog() },
+                    variant = EduButtonVariant.PRIMARY,
+                    testTag = "btn_close_school_meta"
+                )
+            },
+            shape = EduShapes.large,
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
+}
+
+@Composable
+private fun MetaRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text = value, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
     }
 }
 

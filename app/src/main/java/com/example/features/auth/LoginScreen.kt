@@ -21,9 +21,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apartment
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.LockReset
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -44,7 +48,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.core.security.UserRole
 import com.example.core.theme.EduError
+import com.example.core.theme.EduShapes
 import com.example.core.theme.EduSpacing
+import com.example.core.theme.EduSuccess
 import com.example.shared.components.BadgeType
 import com.example.shared.components.EduBadge
 import com.example.shared.components.EduButton
@@ -52,6 +58,7 @@ import com.example.shared.components.EduButtonVariant
 import com.example.shared.components.EduCard
 import com.example.shared.components.EduPasswordInput
 import com.example.shared.components.EduTextField
+import com.example.shared.components.GoogleSignInButton
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -62,6 +69,7 @@ fun LoginScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     Scaffold(
         modifier = modifier.fillMaxSize().testTag("login_screen")
@@ -98,7 +106,7 @@ fun LoginScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Sign in to access your school workspace",
+                    text = "Multi-Tenant School Management Platform",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -159,6 +167,38 @@ fun LoginScreen(
                             }
                         }
                     }
+                }
+            }
+
+            // Google Sign-In Option (Firebase Cloud Auth)
+            item {
+                Spacer(modifier = Modifier.height(EduSpacing.xs))
+                GoogleSignInButton(
+                    onAuthSuccess = {
+                        viewModel.onGoogleSignInSuccess(onSuccess = onLoginSuccess)
+                    },
+                    onAuthError = { errorMsg ->
+                        viewModel.onGoogleSignInError(errorMsg)
+                    },
+                    schoolId = "sch_oxford_01",
+                    testTag = "login_google_btn"
+                )
+            }
+
+            // Divider
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = EduSpacing.xs),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
+                    Text(
+                        text = " OR SIGN IN WITH EMAIL ",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = EduSpacing.xs)
+                    )
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
 
@@ -241,7 +281,10 @@ fun LoginScreen(
                         )
                     }
 
-                    TextButton(onClick = {}) {
+                    TextButton(
+                        onClick = { viewModel.openForgotPasswordDialog() },
+                        modifier = Modifier.testTag("login_forgot_password_btn")
+                    ) {
                         Text(
                             text = "Forgot password?",
                             style = MaterialTheme.typography.bodySmall,
@@ -290,7 +333,101 @@ fun LoginScreen(
                         )
                     }
                 }
+                Spacer(modifier = Modifier.height(EduSpacing.lg))
             }
         }
+    }
+
+    // Password Reset Dialog
+    if (uiState.showForgotPasswordDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissForgotPasswordDialog() },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.LockReset,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(EduSpacing.xs))
+                    Text(
+                        text = "Reset Password",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(EduSpacing.sm)) {
+                    Text(
+                        text = "Enter your verified school or personal email address to receive a secure password reset link.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    EduTextField(
+                        value = uiState.resetEmail,
+                        onValueChange = { viewModel.onResetEmailChanged(it) },
+                        label = "Account Email",
+                        placeholder = "name@school.edu",
+                        testTag = "input_reset_email"
+                    )
+
+                    if (uiState.resetEmailError != null) {
+                        Text(
+                            text = uiState.resetEmailError.orEmpty(),
+                            color = EduError,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.testTag("reset_error_text")
+                        )
+                    }
+
+                    if (uiState.resetEmailSent) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(EduSuccess.copy(alpha = 0.12f))
+                                .padding(EduSpacing.sm)
+                                .testTag("reset_success_banner")
+                        ) {
+                            Text(
+                                text = "Password reset instructions dispatched. Please check your inbox.",
+                                color = EduSuccess,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                EduButton(
+                    text = if (uiState.resetEmailSent) "Close" else "Send Reset Link",
+                    onClick = {
+                        if (uiState.resetEmailSent) {
+                            viewModel.dismissForgotPasswordDialog()
+                        } else {
+                            viewModel.sendPasswordReset(context)
+                        }
+                    },
+                    isLoading = uiState.isResetLoading,
+                    variant = EduButtonVariant.PRIMARY,
+                    testTag = "btn_confirm_reset"
+                )
+            },
+            dismissButton = {
+                if (!uiState.resetEmailSent) {
+                    TextButton(
+                        onClick = { viewModel.dismissForgotPasswordDialog() },
+                        modifier = Modifier.testTag("btn_cancel_reset")
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            },
+            shape = EduShapes.large,
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     }
 }

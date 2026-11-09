@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // User profiles collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+
+    // School organizations & multi-tenant sub-collections
+    match /schools/{schoolId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated();
+
+      match /students/{studentId} {
+        allow read, write: if isAuthenticated();
+      }
+
+      match /teachers/{teacherId} {
+        allow read, write: if isAuthenticated();
+      }
+
+      match /attendance/{attendanceId} {
+        allow read, write: if isAuthenticated();
+      }
+
+      match /fees/{feeId} {
+        allow read, write: if isAuthenticated();
+      }
+
+      match /notices/{noticeId} {
+        allow read, write: if isAuthenticated();
+      }
+
+      match /classes/{classId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+  }
+}

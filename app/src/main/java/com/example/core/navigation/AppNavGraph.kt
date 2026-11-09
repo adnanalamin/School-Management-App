@@ -32,6 +32,8 @@ import com.example.features.auth.LoginScreen
 import com.example.features.auth.LoginViewModel
 import com.example.features.auth.RegisterScreen
 import com.example.features.auth.RegisterViewModel
+import com.example.features.schools.presentation.SchoolRegistrationScreen
+import com.example.features.schools.presentation.SchoolRegistrationViewModel
 import com.example.features.dashboard.DashboardScreen
 import com.example.features.dashboard.DashboardViewModel
 import com.example.features.designsystem.DesignSystemScreen
@@ -176,15 +178,19 @@ fun AppNavGraph(
                 )
             }
 
-            // Register Screen
+            // Register School Destination (Phase 5 School Registration & Onboarding)
             composable(AppScreen.Register.route) {
-                val registerViewModel: RegisterViewModel = viewModel()
+                val schoolRegistrationViewModel: SchoolRegistrationViewModel = viewModel()
                 BackHandler {
-                    navController.popBackStack()
+                    if (schoolRegistrationViewModel.uiState.value.currentStep > 0) {
+                        schoolRegistrationViewModel.previousStep()
+                    } else {
+                        navController.popBackStack()
+                    }
                 }
-                RegisterScreen(
-                    viewModel = registerViewModel,
-                    onRegisterSuccess = {
+                SchoolRegistrationScreen(
+                    viewModel = schoolRegistrationViewModel,
+                    onRegistrationSuccess = {
                         navController.navigate(AppScreen.MainDashboard.route) {
                             popUpTo(AppScreen.Login.route) { inclusive = true }
                         }

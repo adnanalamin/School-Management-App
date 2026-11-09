@@ -1,0 +1,137 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account profile linked to an authenticated school persona",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "role": { "type": "string" },
+        "phone": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "displayName", "role"]
+    },
+    "SchoolTenant": {
+      "title": "SchoolTenant",
+      "description": "Multi-tenant educational institution organization (Phase 5 School Registration)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "code": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "slogan": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "website": { "type": "string" },
+        "establishedYear": { "type": "integer" },
+        "schoolType": { "type": "string" },
+        "academicSession": { "type": "string" },
+        "currency": { "type": "string" },
+        "currencySymbol": { "type": "string" },
+        "timezone": { "type": "string" },
+        "primaryColorHex": { "type": "string" },
+        "secondaryColorHex": { "type": "string" },
+        "adminUid": { "type": "string" },
+        "status": { "type": "string" },
+        "subscriptionPlan": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "name",
+        "code",
+        "address",
+        "phone",
+        "email",
+        "establishedYear",
+        "schoolType",
+        "academicSession",
+        "currency",
+        "timezone",
+        "status"
+      ]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Student enrolled in a specific school tenant",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "name": { "type": "string" },
+        "roll": { "type": "string" },
+        "classId": { "type": "string" },
+        "sectionId": { "type": "string" },
+        "parentEmail": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "schoolId", "name", "roll"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Attendance log for a student on a specific calendar date",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "date": { "type": "string" },
+        "studentId": { "type": "string" },
+        "status": { "type": "string" },
+        "markedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "schoolId", "date", "studentId", "status"]
+    },
+    "FeeInvoice": {
+      "title": "FeeInvoice",
+      "description": "Tuition or academic fee invoice issued to a student",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "title": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "schoolId", "studentId", "title", "amount", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles indexed by authentication UID"
+    },
+    "/schools/{schoolId}": {
+      "schema": "SchoolTenant",
+      "description": "School institutions containing full 12-field registration metadata"
+    },
+    "/schools/{schoolId}/students/{studentId}": {
+      "schema": "Student",
+      "description": "Students enrolled in school"
+    },
+    "/schools/{schoolId}/attendance/{attendanceId}": {
+      "schema": "AttendanceRecord",
+      "description": "Attendance logs in school"
+    },
+    "/schools/{schoolId}/fees/{feeId}": {
+      "schema": "FeeInvoice",
+      "description": "Fee invoices in school"
+    }
+  }
+}

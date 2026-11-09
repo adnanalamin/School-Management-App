@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import com.example.core.security.Permission
 import com.example.core.security.TenantContext
 import com.example.core.security.UserRole
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -82,6 +84,11 @@ class ProfileViewModel : ViewModel() {
     }
 
     fun signOut(onSignedOut: () -> Unit) {
+        try {
+            Firebase.auth.signOut()
+        } catch (_: Exception) {
+            // Ignore if Firebase not initialized in test runtime
+        }
         TenantContext.clear()
         onSignedOut()
     }
