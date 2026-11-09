@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- EduManage Code Quality & Analysis Rules -->
+    <issue id="HardcodedText" severity="warning" />
+    <issue id="ContentDescription" severity="error" />
+    <issue id="ClickableViewAccessibility" severity="warning" />
+    <issue id="UnusedResources" severity="warning" />
+</lint>

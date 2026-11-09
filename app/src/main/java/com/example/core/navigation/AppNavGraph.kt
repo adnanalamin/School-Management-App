@@ -1,0 +1,293 @@
+package com.example.core.navigation
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.core.security.Permission
+import com.example.core.security.TenantContext
+import com.example.features.auth.LoginScreen
+import com.example.features.auth.LoginViewModel
+import com.example.features.auth.RegisterScreen
+import com.example.features.auth.RegisterViewModel
+import com.example.features.dashboard.DashboardScreen
+import com.example.features.dashboard.DashboardViewModel
+import com.example.features.designsystem.DesignSystemScreen
+import com.example.features.designsystem.DesignSystemViewModel
+import com.example.features.foundation.FoundationScreen
+import com.example.features.foundation.FoundationViewModel
+import com.example.features.onboarding.OnboardingScreen
+import com.example.features.onboarding.OnboardingViewModel
+import com.example.features.profile.ProfileScreen
+import com.example.features.profile.ProfileViewModel
+import com.example.features.settings.SettingsScreen
+import com.example.features.settings.SettingsViewModel
+import com.example.features.splash.SplashScreen
+import com.example.features.splash.SplashViewModel
+import com.example.shared.components.EduBottomNavBar
+import com.example.shared.components.NavItem
+import kotlinx.coroutines.launch
+
+@Composable
+fun AppNavGraph(
+    navController: NavHostController,
+    modifier: Modifier = Modifier,
+    foundationViewModel: FoundationViewModel = viewModel(),
+    designSystemViewModel: DesignSystemViewModel = viewModel()
+) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Determine if bottom navigation should be visible
+    val isBottomBarVisible = currentRoute in listOf(
+        AppScreen.MainDashboard.route,
+        AppScreen.StudentsList.route,
+        AppScreen.Attendance.route,
+        AppScreen.Fees.route,
+        AppScreen.Settings.route
+    )
+
+    // Helper function to safely navigate with RouteGuard evaluation
+    val safeNavigate: (AppScreen) -> Unit = { destination ->
+        when (val result = RouteGuard.evaluate(destination)) {
+            is RouteGuard.GuardResult.Authorized -> {
+                navController.navigate(destination.route) {
+                    popUpTo(AppScreen.MainDashboard.route) {
+                        saveState = true
+                    }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
+            is RouteGuard.GuardResult.Redirect -> {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(result.reason)
+                }
+                navController.navigate(result.targetScreen.route) {
+                    launchSingleTop = true
+                }
+            }
+        }
+    }
+
+    // Dynamic Bottom Nav items based on current active role permissions
+    val activeRole = TenantContext.activeUserRole.value
+    val bottomNavItems = mutableListOf(
+        NavItem(AppScreen.MainDashboard.route, "Home", Icons.Default.Dashboard, "nav_item_dashboard")
+    )
+    if (TenantContext.hasPermission(Permission.STUDENTS_VIEW)) {
+        bottomNavItems.add(NavItem(AppScreen.StudentsList.route, "Students", Icons.Default.School, "nav_item_students"))
+    }
+    if (TenantContext.hasPermission(Permission.ATTENDANCE_VIEW)) {
+        bottomNavItems.add(NavItem(AppScreen.Attendance.route, "Attendance", Icons.Default.CheckCircle, "nav_item_attendance"))
+    }
+    if (TenantContext.hasPermission(Permission.FEES_VIEW)) {
+        bottomNavItems.add(NavItem(AppScreen.Fees.route, "Fees", Icons.Default.AttachMoney, "nav_item_fees"))
+    }
+    bottomNavItems.add(NavItem(AppScreen.Settings.route, "Settings", Icons.Default.Settings, "nav_item_settings"))
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            if (isBottomBarVisible) {
+                EduBottomNavBar(
+                    items = bottomNavItems,
+                    selectedId = currentRoute ?: AppScreen.MainDashboard.route,
+                    onItemSelected = { route ->
+                        val screen = AppScreen.fromRoute(route)
+                        safeNavigate(screen)
+                    }
+                )
+            }
+        }
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = AppScreen.Splash.route,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            // Splash Screen
+            composable(AppScreen.Splash.route) {
+                val splashViewModel: SplashViewModel = viewModel()
+                SplashScreen(
+                    viewModel = splashViewModel,
+                    onNavigateNext = { route ->
+                        navController.navigate(route) {
+                            popUpTo(AppScreen.Splash.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+            // Onboarding Screen
+            composable(AppScreen.Onboarding.route) {
+                val onboardingViewModel: OnboardingViewModel = viewModel()
+                OnboardingScreen(
+                    viewModel = onboardingViewModel,
+                    onFinishOnboarding = {
+                        navController.navigate(AppScreen.Login.route) {
+                            popUpTo(AppScreen.Onboarding.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+            // Login Screen
+            composable(AppScreen.Login.route) {
+                val loginViewModel: LoginViewModel = viewModel()
+                LoginScreen(
+                    viewModel = loginViewModel,
+                    onLoginSuccess = {
+                        navController.navigate(AppScreen.MainDashboard.route) {
+                            popUpTo(AppScreen.Login.route) { inclusive = true }
+                        }
+                    },
+                    onNavigateToRegister = {
+                        navController.navigate(AppScreen.Register.route)
+                    }
+                )
+            }
+
+            // Register Screen
+            composable(AppScreen.Register.route) {
+                val registerViewModel: RegisterViewModel = viewModel()
+                BackHandler {
+                    navController.popBackStack()
+                }
+                RegisterScreen(
+                    viewModel = registerViewModel,
+                    onRegisterSuccess = {
+                        navController.navigate(AppScreen.MainDashboard.route) {
+                            popUpTo(AppScreen.Login.route) { inclusive = true }
+                        }
+                    },
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            // Main Dashboard Screen
+            composable(AppScreen.MainDashboard.route) {
+                val dashboardViewModel: DashboardViewModel = viewModel()
+                DashboardScreen(
+                    viewModel = dashboardViewModel,
+                    onNavigateToStudents = { safeNavigate(AppScreen.StudentsList) },
+                    onNavigateToAttendance = { safeNavigate(AppScreen.Attendance) },
+                    onNavigateToFees = { safeNavigate(AppScreen.Fees) },
+                    onNavigateToProfile = { navController.navigate(AppScreen.Profile.route) }
+                )
+            }
+
+            // Students Directory Route
+            composable(AppScreen.StudentsList.route) {
+                BackHandler { safeNavigate(AppScreen.MainDashboard) }
+                val dashboardViewModel: DashboardViewModel = viewModel()
+                DashboardScreen(
+                    viewModel = dashboardViewModel,
+                    onNavigateToStudents = { safeNavigate(AppScreen.StudentsList) },
+                    onNavigateToAttendance = { safeNavigate(AppScreen.Attendance) },
+                    onNavigateToFees = { safeNavigate(AppScreen.Fees) },
+                    onNavigateToProfile = { navController.navigate(AppScreen.Profile.route) }
+                )
+            }
+
+            // Attendance Route
+            composable(AppScreen.Attendance.route) {
+                BackHandler { safeNavigate(AppScreen.MainDashboard) }
+                val dashboardViewModel: DashboardViewModel = viewModel()
+                DashboardScreen(
+                    viewModel = dashboardViewModel,
+                    onNavigateToStudents = { safeNavigate(AppScreen.StudentsList) },
+                    onNavigateToAttendance = { safeNavigate(AppScreen.Attendance) },
+                    onNavigateToFees = { safeNavigate(AppScreen.Fees) },
+                    onNavigateToProfile = { navController.navigate(AppScreen.Profile.route) }
+                )
+            }
+
+            // Fees Route
+            composable(AppScreen.Fees.route) {
+                BackHandler { safeNavigate(AppScreen.MainDashboard) }
+                val dashboardViewModel: DashboardViewModel = viewModel()
+                DashboardScreen(
+                    viewModel = dashboardViewModel,
+                    onNavigateToStudents = { safeNavigate(AppScreen.StudentsList) },
+                    onNavigateToAttendance = { safeNavigate(AppScreen.Attendance) },
+                    onNavigateToFees = { safeNavigate(AppScreen.Fees) },
+                    onNavigateToProfile = { navController.navigate(AppScreen.Profile.route) }
+                )
+            }
+
+            // User Profile Screen
+            composable(AppScreen.Profile.route) {
+                val profileViewModel: ProfileViewModel = viewModel()
+                BackHandler {
+                    navController.popBackStack()
+                }
+                ProfileScreen(
+                    viewModel = profileViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onSignedOut = {
+                        navController.navigate(AppScreen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+            // Settings Screen
+            composable(AppScreen.Settings.route) {
+                val settingsViewModel: SettingsViewModel = viewModel()
+                BackHandler { safeNavigate(AppScreen.MainDashboard) }
+                SettingsScreen(
+                    viewModel = settingsViewModel,
+                    onNavigateToFoundation = { navController.navigate(AppScreen.Foundation.route) },
+                    onNavigateToDesignSystem = { navController.navigate(AppScreen.DesignSystem.route) }
+                )
+            }
+
+            // Foundation Hub (Phase 1)
+            composable(AppScreen.Foundation.route) {
+                BackHandler { navController.popBackStack() }
+                FoundationScreen(viewModel = foundationViewModel)
+            }
+
+            // Design System (Phase 2)
+            composable(AppScreen.DesignSystem.route) {
+                BackHandler { navController.popBackStack() }
+                DesignSystemScreen(
+                    viewModel = designSystemViewModel,
+                    onBackToFoundation = { navController.popBackStack() }
+                )
+            }
+        }
+    }
+}
