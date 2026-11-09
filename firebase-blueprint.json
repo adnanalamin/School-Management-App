@@ -60,56 +60,20 @@
         "status"
       ]
     },
-    "Student": {
-      "title": "Student",
-      "description": "Student enrolled in a specific school tenant",
+    "TenantEntity": {
+      "title": "TenantEntity",
+      "description": "General representation of a tenant-scoped record in any of the 15 isolated subcollections",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "schoolId": { "type": "string" },
-        "name": { "type": "string" },
-        "roll": { "type": "string" },
-        "classId": { "type": "string" },
-        "sectionId": { "type": "string" },
-        "parentEmail": { "type": "string" },
-        "status": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "schoolId", "name", "roll"]
-    },
-    "AttendanceRecord": {
-      "title": "AttendanceRecord",
-      "description": "Attendance log for a student on a specific calendar date",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "schoolId": { "type": "string" },
-        "date": { "type": "string" },
-        "studentId": { "type": "string" },
-        "status": { "type": "string" },
-        "markedBy": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "schoolId", "date", "studentId", "status"]
-    },
-    "FeeInvoice": {
-      "title": "FeeInvoice",
-      "description": "Tuition or academic fee invoice issued to a student",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "schoolId": { "type": "string" },
-        "studentId": { "type": "string" },
         "title": { "type": "string" },
-        "amount": { "type": "number" },
+        "category": { "type": "string" },
+        "details": { "type": "string" },
         "status": { "type": "string" },
-        "dueDate": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "schoolId", "studentId", "title", "amount", "status"]
+      "required": ["id", "schoolId"]
     }
   },
   "firestore": {
@@ -122,16 +86,64 @@
       "description": "School institutions containing full 12-field registration metadata"
     },
     "/schools/{schoolId}/students/{studentId}": {
-      "schema": "Student",
-      "description": "Students enrolled in school"
+      "schema": "TenantEntity",
+      "description": "Subcollection 1: Student enrollment records"
+    },
+    "/schools/{schoolId}/teachers/{teacherId}": {
+      "schema": "TenantEntity",
+      "description": "Subcollection 2: Teacher faculty records"
+    },
+    "/schools/{schoolId}/parents/{parentId}": {
+      "schema": "TenantEntity",
+      "description": "Subcollection 3: Parent guardian profiles"
+    },
+    "/schools/{schoolId}/classes/{classId}": {
+      "schema": "TenantEntity",
+      "description": "Subcollection 4: Academic grade classes"
+    },
+    "/schools/{schoolId}/sections/{sectionId}": {
+      "schema": "TenantEntity",
+      "description": "Subcollection 5: Class sections"
     },
     "/schools/{schoolId}/attendance/{attendanceId}": {
-      "schema": "AttendanceRecord",
-      "description": "Attendance logs in school"
+      "schema": "TenantEntity",
+      "description": "Subcollection 6: Student & teacher daily attendance logs"
     },
     "/schools/{schoolId}/fees/{feeId}": {
-      "schema": "FeeInvoice",
-      "description": "Fee invoices in school"
+      "schema": "TenantEntity",
+      "description": "Subcollection 7: Fee structures, invoices & payment logs"
+    },
+    "/schools/{schoolId}/exams/{examId}": {
+      "schema": "TenantEntity",
+      "description": "Subcollection 8: Exam terms and timetables"
+    },
+    "/schools/{schoolId}/results/{resultId}": {
+      "schema": "TenantEntity",
+      "description": "Subcollection 9: Academic grade sheets and results"
+    },
+    "/schools/{schoolId}/notices/{noticeId}": {
+      "schema": "TenantEntity",
+      "description": "Subcollection 10: Circulars, announcements & broadcast notices"
+    },
+    "/schools/{schoolId}/homework/{homeworkId}": {
+      "schema": "TenantEntity",
+      "description": "Subcollection 11: Daily homework and assignment postings"
+    },
+    "/schools/{schoolId}/library/{bookId}": {
+      "schema": "TenantEntity",
+      "description": "Subcollection 12: Library catalog, books & issue records"
+    },
+    "/schools/{schoolId}/transport/{routeId}": {
+      "schema": "TenantEntity",
+      "description": "Subcollection 13: Transport routes, buses & driver schedules"
+    },
+    "/schools/{schoolId}/events/{eventId}": {
+      "schema": "TenantEntity",
+      "description": "Subcollection 14: School calendar events & sports days"
+    },
+    "/schools/{schoolId}/documents/{docId}": {
+      "schema": "TenantEntity",
+      "description": "Subcollection 15: Institutional documents, syllabi & archives"
     }
   }
 }

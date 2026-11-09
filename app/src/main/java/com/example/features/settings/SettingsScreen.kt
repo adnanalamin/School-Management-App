@@ -52,6 +52,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     onNavigateToFoundation: () -> Unit,
     onNavigateToDesignSystem: () -> Unit,
+    onNavigateToTenantArchitecture: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -255,6 +256,13 @@ fun SettingsScreen(
                         subtitle = "Interactive component catalog, modals, and shimmer testbed",
                         onClick = onNavigateToDesignSystem,
                         testTag = "nav_to_design_system_link"
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    SettingClickableRow(
+                        title = "Multi-Tenant Architecture Explorer (Phase 6)",
+                        subtitle = "Inspect 15 isolated subcollections, cross-tenant firewall & penetration test",
+                        onClick = onNavigateToTenantArchitecture,
+                        testTag = "nav_to_tenant_architecture_link"
                     )
                 }
             }

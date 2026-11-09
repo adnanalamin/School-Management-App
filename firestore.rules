@@ -17,34 +17,19 @@ service cloud.firestore {
       allow delete: if isOwner(userId);
     }
 
-    // School organizations & multi-tenant sub-collections
+    // Multi-tenant school organizations & 15 subcollections
     match /schools/{schoolId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated();
+      allow read, create, update, delete: if isAuthenticated();
 
-      match /students/{studentId} {
-        allow read, write: if isAuthenticated();
-      }
-
-      match /teachers/{teacherId} {
-        allow read, write: if isAuthenticated();
-      }
-
-      match /attendance/{attendanceId} {
-        allow read, write: if isAuthenticated();
-      }
-
-      match /fees/{feeId} {
-        allow read, write: if isAuthenticated();
-      }
-
-      match /notices/{noticeId} {
-        allow read, write: if isAuthenticated();
-      }
-
-      match /classes/{classId} {
-        allow read, write: if isAuthenticated();
+      // 15 isolated subcollections under each tenant:
+      // students, teachers, parents, classes, sections, attendance, fees,
+      // exams, results, notices, homework, library, transport, events, documents
+      match /{subcollection}/{docId} {
+        allow read, write: if isAuthenticated() && subcollection in [
+          'students', 'teachers', 'parents', 'classes', 'sections',
+          'attendance', 'fees', 'exams', 'results', 'notices',
+          'homework', 'library', 'transport', 'events', 'documents'
+        ];
       }
     }
   }

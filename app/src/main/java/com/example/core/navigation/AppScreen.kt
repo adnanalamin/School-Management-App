@@ -96,6 +96,12 @@ sealed class AppScreen(
         icon = Icons.Default.Apartment
     )
 
+    data object TenantArchitecture : AppScreen(
+        route = "tenant_architecture",
+        title = "Multi-Tenant Architecture",
+        icon = Icons.Default.Apartment
+    )
+
     companion object {
         fun fromRoute(route: String?): AppScreen {
             return when (route?.substringBefore("?")) {
@@ -111,6 +117,7 @@ sealed class AppScreen(
                 Settings.route -> Settings
                 DesignSystem.route -> DesignSystem
                 Foundation.route -> Foundation
+                TenantArchitecture.route -> TenantArchitecture
                 else -> MainDashboard
             }
         }

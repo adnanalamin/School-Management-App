@@ -46,6 +46,8 @@ import com.example.features.profile.ProfileScreen
 import com.example.features.profile.ProfileViewModel
 import com.example.features.settings.SettingsScreen
 import com.example.features.settings.SettingsViewModel
+import com.example.features.tenant.TenantArchitectureScreen
+import com.example.features.tenant.TenantArchitectureViewModel
 import com.example.features.splash.SplashScreen
 import com.example.features.splash.SplashViewModel
 import com.example.shared.components.EduBottomNavBar
@@ -276,7 +278,8 @@ fun AppNavGraph(
                 SettingsScreen(
                     viewModel = settingsViewModel,
                     onNavigateToFoundation = { navController.navigate(AppScreen.Foundation.route) },
-                    onNavigateToDesignSystem = { navController.navigate(AppScreen.DesignSystem.route) }
+                    onNavigateToDesignSystem = { navController.navigate(AppScreen.DesignSystem.route) },
+                    onNavigateToTenantArchitecture = { navController.navigate(AppScreen.TenantArchitecture.route) }
                 )
             }
 
@@ -292,6 +295,16 @@ fun AppNavGraph(
                 DesignSystemScreen(
                     viewModel = designSystemViewModel,
                     onBackToFoundation = { navController.popBackStack() }
+                )
+            }
+
+            // Multi-Tenant Architecture Explorer (Phase 6)
+            composable(AppScreen.TenantArchitecture.route) {
+                val tenantViewModel: TenantArchitectureViewModel = viewModel()
+                BackHandler { navController.popBackStack() }
+                TenantArchitectureScreen(
+                    viewModel = tenantViewModel,
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
         }

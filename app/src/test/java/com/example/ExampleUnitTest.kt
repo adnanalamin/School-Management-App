@@ -299,5 +299,95 @@ class ExampleUnitTest {
         assertTrue(vm.previousStep())
         assertEquals(2, vm.uiState.value.currentStep)
     }
+
+    @Test
+    fun verifyTenantPathProviderBuildsAll15Subcollections() {
+        val schoolId = "sch_oxford_01"
+        TenantContext.setTenant(schoolId, UserRole.SCHOOL_ADMIN, "usr_admin_01")
+
+        assertEquals("schools/sch_oxford_01", com.example.core.tenant.TenantPathProvider.schoolPath(schoolId))
+        assertEquals("schools/sch_oxford_01/students", com.example.core.tenant.TenantPathProvider.studentsPath(schoolId))
+        assertEquals("schools/sch_oxford_01/teachers", com.example.core.tenant.TenantPathProvider.teachersPath(schoolId))
+        assertEquals("schools/sch_oxford_01/parents", com.example.core.tenant.TenantPathProvider.parentsPath(schoolId))
+        assertEquals("schools/sch_oxford_01/classes", com.example.core.tenant.TenantPathProvider.classesPath(schoolId))
+        assertEquals("schools/sch_oxford_01/sections", com.example.core.tenant.TenantPathProvider.sectionsPath(schoolId))
+        assertEquals("schools/sch_oxford_01/attendance", com.example.core.tenant.TenantPathProvider.attendancePath(schoolId))
+        assertEquals("schools/sch_oxford_01/fees", com.example.core.tenant.TenantPathProvider.feesPath(schoolId))
+        assertEquals("schools/sch_oxford_01/exams", com.example.core.tenant.TenantPathProvider.examsPath(schoolId))
+        assertEquals("schools/sch_oxford_01/results", com.example.core.tenant.TenantPathProvider.resultsPath(schoolId))
+        assertEquals("schools/sch_oxford_01/notices", com.example.core.tenant.TenantPathProvider.noticesPath(schoolId))
+        assertEquals("schools/sch_oxford_01/homework", com.example.core.tenant.TenantPathProvider.homeworkPath(schoolId))
+        assertEquals("schools/sch_oxford_01/library", com.example.core.tenant.TenantPathProvider.libraryPath(schoolId))
+        assertEquals("schools/sch_oxford_01/transport", com.example.core.tenant.TenantPathProvider.transportPath(schoolId))
+        assertEquals("schools/sch_oxford_01/events", com.example.core.tenant.TenantPathProvider.eventsPath(schoolId))
+        assertEquals("schools/sch_oxford_01/documents", com.example.core.tenant.TenantPathProvider.documentsPath(schoolId))
+    }
+
+    @Test
+    fun verifyTenantPathProviderRejectsBlankOrInvalidSchoolId() {
+        var blankRejected = false
+        try {
+            com.example.core.tenant.TenantPathProvider.validateSchoolId("")
+        } catch (e: AppError.SecurityViolation) {
+            blankRejected = true
+        }
+        assertTrue(blankRejected)
+
+        var invalidCharsRejected = false
+        try {
+            com.example.core.tenant.TenantPathProvider.validateSchoolId("sch/../../evil")
+        } catch (e: AppError.SecurityViolation) {
+            invalidCharsRejected = true
+        }
+        assertTrue(invalidCharsRejected)
+    }
+
+    @Test
+    fun verifyTenantDataRepositoryCrossTenantFirewallEnforcement() {
+        val repo = com.example.core.tenant.TenantDataRepository()
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+
+        // Oxford data isolation check
+        val oxfordStudents = repo.getPreSeededStudents("sch_oxford_01")
+        assertEquals(4, oxfordStudents.size)
+        assertTrue(oxfordStudents.all { it.schoolId == "sch_oxford_01" })
+
+        // Cambridge data isolation check
+        val cambridgeStudents = repo.getPreSeededStudents("sch_cambridge_101")
+        assertEquals(3, cambridgeStudents.size)
+        assertTrue(cambridgeStudents.all { it.schoolId == "sch_cambridge_101" })
+
+        // Cross-Tenant Boundary Firewall check: Session is locked to Oxford, query for Cambridge should throw
+        var crossTenantBlocked = false
+        try {
+            com.example.core.tenant.TenantPathProvider.verifyTenantBoundary("sch_cambridge_101")
+        } catch (e: AppError.SecurityViolation) {
+            crossTenantBlocked = true
+            assertTrue(e.userFriendlyMessage.contains("Cross-School Access Blocked"))
+        }
+        assertTrue(crossTenantBlocked)
+    }
+
+    @Test
+    fun verifyTenantArchitectureViewModelSimulationAndMetrics() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.tenant.TenantArchitectureViewModel()
+
+        assertEquals("sch_oxford_01", vm.uiState.value.activeTenantId)
+        assertEquals(15, vm.uiState.value.subcollectionsList.size)
+        assertEquals("schools/sch_oxford_01/students", vm.uiState.value.currentPath)
+
+        // Switch to Cambridge
+        vm.switchActiveTenant("sch_cambridge_101")
+        assertEquals("sch_cambridge_101", vm.uiState.value.activeTenantId)
+        assertEquals("schools/sch_cambridge_101/students", vm.uiState.value.currentPath)
+
+        // Run cross-tenant breach attempt simulation
+        vm.simulateCrossTenantBreachAttempt()
+        assertTrue(vm.uiState.value.isAttackBlocked)
+        assertNotNull(vm.uiState.value.simulatedAttackMessage)
+        assertTrue(vm.uiState.value.simulatedAttackMessage!!.contains("BLOCKED"))
+    }
 }
+
 

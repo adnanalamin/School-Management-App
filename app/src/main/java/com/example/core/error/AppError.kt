@@ -20,6 +20,11 @@ sealed class AppError(
         technical: String? = null
     ) : AppError(userMessage, technical)
 
+    class SecurityViolation(
+        userMessage: String = "Security boundary violation: Unauthorized multi-tenant operation.",
+        technical: String? = null
+    ) : AppError(userMessage, technical)
+
     class AuthenticationError(
         userMessage: String = "Invalid login credentials. Please verify your details.",
         technical: String? = null,
