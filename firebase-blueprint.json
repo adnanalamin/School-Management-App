@@ -153,6 +153,44 @@
         "status"
       ]
     },
+    "AcademicClass": {
+      "title": "AcademicClass",
+      "description": "Academic grade class container (Phase 10 Class, Section & Subject Allocation Engine)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "name": { "type": "string" },
+        "code": { "type": "string" },
+        "numericGrade": { "type": "integer" },
+        "stream": { "type": "string" },
+        "sectionsCount": { "type": "integer" },
+        "totalStudents": { "type": "integer" },
+        "academicYear": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "schoolId", "name", "code", "numericGrade"]
+    },
+    "ClassSection": {
+      "title": "ClassSection",
+      "description": "Classroom section with room assignment and student capacity (Phase 10)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "classId": { "type": "string" },
+        "className": { "type": "string" },
+        "name": { "type": "string" },
+        "roomNumber": { "type": "string" },
+        "capacity": { "type": "integer" },
+        "currentEnrollment": { "type": "integer" },
+        "classTeacherId": { "type": "string" },
+        "classTeacherName": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "schoolId", "classId", "name", "roomNumber", "capacity"]
+    },
     "TenantEntity": {
       "title": "TenantEntity",
       "description": "General representation of a tenant-scoped record in any of the 15 isolated subcollections",
@@ -191,11 +229,11 @@
       "description": "Subcollection 3: Parent guardian profiles"
     },
     "/schools/{schoolId}/classes/{classId}": {
-      "schema": "TenantEntity",
+      "schema": "AcademicClass",
       "description": "Subcollection 4: Academic grade classes"
     },
     "/schools/{schoolId}/sections/{sectionId}": {
-      "schema": "TenantEntity",
+      "schema": "ClassSection",
       "description": "Subcollection 5: Class sections"
     },
     "/schools/{schoolId}/attendance/{attendanceId}": {

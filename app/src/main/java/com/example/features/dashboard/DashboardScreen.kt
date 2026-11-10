@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Schedule
@@ -70,6 +71,7 @@ fun DashboardScreen(
     viewModel: DashboardViewModel,
     onNavigateToStudents: () -> Unit,
     onNavigateToTeachers: () -> Unit = {},
+    onNavigateToClasses: () -> Unit = {},
     onNavigateToAttendance: () -> Unit,
     onNavigateToFees: () -> Unit,
     onNavigateToProfile: () -> Unit,
@@ -232,6 +234,14 @@ fun DashboardScreen(
                             icon = Icons.Default.Group,
                             onClick = onNavigateToTeachers,
                             testTag = "action_add_faculty"
+                        )
+                    }
+                    if (viewModel.hasPermission(Permission.CLASSES_VIEW)) {
+                        QuickActionButton(
+                            label = "Class Routine",
+                            icon = Icons.Default.MeetingRoom,
+                            onClick = onNavigateToClasses,
+                            testTag = "action_class_routine"
                         )
                     }
                     if (viewModel.hasPermission(Permission.FEES_COLLECT)) {

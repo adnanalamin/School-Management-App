@@ -847,7 +847,197 @@ class ExampleUnitTest {
         assertTrue(vm.previousStep())
         assertEquals(2, vm.uiState.value.currentStep)
     }
+
+    @Test
+    fun verifyAcademicClassAndSectionFirestoreSerializationAndDeserialization() {
+        val academicClass = com.example.features.classes.domain.AcademicClass(
+            id = "cls_test_10",
+            schoolId = "sch_oxford_01",
+            name = "Grade 10",
+            code = "G10",
+            numericGrade = 10,
+            stream = "Science & Tech",
+            sectionsCount = 2,
+            totalStudents = 62,
+            academicYear = "2026-2027"
+        )
+
+        val classMap = academicClass.toFirestoreMap()
+        assertEquals("cls_test_10", classMap["id"])
+        assertEquals("sch_oxford_01", classMap["schoolId"])
+        assertEquals("Grade 10", classMap["name"])
+        assertEquals("G10", classMap["code"])
+        assertEquals(10, classMap["numericGrade"])
+        assertEquals("Science & Tech", classMap["stream"])
+        assertEquals(2, classMap["sectionsCount"])
+        assertEquals(62, classMap["totalStudents"])
+
+        val deserializedClass = com.example.features.classes.domain.AcademicClass.fromFirestoreMap(
+            academicClass.id,
+            academicClass.schoolId,
+            classMap
+        )
+        assertEquals(academicClass.id, deserializedClass.id)
+        assertEquals(academicClass.name, deserializedClass.name)
+        assertEquals(academicClass.code, deserializedClass.code)
+        assertEquals(academicClass.numericGrade, deserializedClass.numericGrade)
+        assertEquals(academicClass.stream, deserializedClass.stream)
+
+        val section = com.example.features.classes.domain.ClassSection(
+            id = "sec_test_10a",
+            schoolId = "sch_oxford_01",
+            classId = "cls_test_10",
+            className = "Grade 10",
+            name = "Section A",
+            roomNumber = "Room 301",
+            capacity = 35,
+            currentEnrollment = 31,
+            classTeacherId = "tea_oxf_01",
+            classTeacherName = "Dr. Sarah Jenkins"
+        )
+
+        val sectionMap = section.toFirestoreMap()
+        assertEquals("sec_test_10a", sectionMap["id"])
+        assertEquals("Grade 10", sectionMap["className"])
+        assertEquals("Section A", sectionMap["name"])
+        assertEquals(35, sectionMap["capacity"])
+        assertEquals(31, sectionMap["currentEnrollment"])
+        assertEquals("tea_oxf_01", sectionMap["classTeacherId"])
+
+        val deserializedSection = com.example.features.classes.domain.ClassSection.fromFirestoreMap(
+            section.id,
+            section.schoolId,
+            sectionMap
+        )
+        assertEquals(section.id, deserializedSection.id)
+        assertEquals(section.displayName, deserializedSection.displayName)
+        assertEquals(section.roomNumber, deserializedSection.roomNumber)
+        assertEquals(section.classTeacherName, deserializedSection.classTeacherName)
+        assertEquals(section.capacity, deserializedSection.capacity)
+        assertEquals(section.currentEnrollment, deserializedSection.currentEnrollment)
+    }
+
+    @Test
+    fun verifySubjectAllocationFirestoreSerializationAndDeserialization() {
+        val allocation = com.example.features.classes.domain.SubjectAllocation(
+            id = "sub_test_01",
+            schoolId = "sch_oxford_01",
+            classId = "cls_oxf_g10",
+            sectionId = "sec_oxf_10a",
+            sectionName = "Grade 10 - Section A",
+            subjectName = "Advanced Physics",
+            subjectCode = "PHY-101",
+            teacherId = "tea_oxf_01",
+            teacherName = "Dr. Sarah Jenkins",
+            periodsPerWeek = 5,
+            isElective = false,
+            roomNumber = "Physics Lab 1"
+        )
+
+        val map = allocation.toFirestoreMap()
+        assertEquals("sub_test_01", map["id"])
+        assertEquals("Advanced Physics", map["subjectName"])
+        assertEquals("PHY-101", map["subjectCode"])
+        assertEquals(5, map["periodsPerWeek"])
+        assertEquals(false, map["isElective"])
+
+        val deserialized = com.example.features.classes.domain.SubjectAllocation.fromFirestoreMap(
+            allocation.id,
+            allocation.schoolId,
+            map
+        )
+        assertEquals(allocation.id, deserialized.id)
+        assertEquals(allocation.subjectName, deserialized.subjectName)
+        assertEquals(allocation.subjectCode, deserialized.subjectCode)
+        assertEquals(allocation.teacherName, deserialized.teacherName)
+        assertEquals(allocation.periodsPerWeek, deserialized.periodsPerWeek)
+        assertEquals(allocation.isElective, deserialized.isElective)
+    }
+
+    @Test
+    fun verifyClassRepositoryPreSeededClassesSectionsAndAllocations() {
+        val repo = com.example.features.classes.data.ClassRepository()
+        val schoolId = "sch_oxford_01"
+
+        val classes = repo.getPreSeededClasses(schoolId)
+        assertEquals(4, classes.size)
+        assertTrue(classes.all { it.schoolId == schoolId })
+
+        val sections = repo.getPreSeededSections(schoolId)
+        assertEquals(4, sections.size)
+        assertTrue(sections.all { it.schoolId == schoolId })
+
+        val allocations = repo.getPreSeededAllocations(schoolId)
+        assertEquals(6, allocations.size)
+        assertTrue(allocations.all { it.schoolId == schoolId })
+
+        val cambridgeClasses = repo.getPreSeededClasses("sch_cambridge_101")
+        assertEquals(3, cambridgeClasses.size)
+        assertTrue(cambridgeClasses.all { it.schoolId == "sch_cambridge_101" })
+    }
+
+    @Test
+    fun verifyClassManagementViewModelTabSwitchingFilteringAndMetrics() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.classes.presentation.ClassManagementViewModel()
+
+        assertEquals(4, vm.uiState.value.totalClassesCount)
+        assertEquals(4, vm.uiState.value.totalSectionsCount)
+        assertEquals(6, vm.uiState.value.totalAllocationsCount)
+        assertEquals(116, vm.uiState.value.totalEnrolledStudents)
+        assertEquals(4, vm.uiState.value.classTeachersAssignedCount)
+
+        // Tab selection
+        vm.selectTab(com.example.features.classes.presentation.ClassManagementTab.SECTIONS)
+        assertEquals(com.example.features.classes.presentation.ClassManagementTab.SECTIONS, vm.uiState.value.selectedTab)
+
+        vm.selectTab(com.example.features.classes.presentation.ClassManagementTab.SUBJECTS)
+        assertEquals(com.example.features.classes.presentation.ClassManagementTab.SUBJECTS, vm.uiState.value.selectedTab)
+
+        // Class filtering
+        vm.onClassFilterChange("cls_oxf_g10")
+        assertEquals("cls_oxf_g10", vm.uiState.value.selectedClassFilter)
+        assertEquals(1, vm.uiState.value.filteredClasses.size)
+        assertEquals(2, vm.uiState.value.filteredSections.size)
+        assertEquals(4, vm.uiState.value.filteredAllocations.size)
+
+        // Clear filter
+        vm.clearFilters()
+        assertNull(vm.uiState.value.selectedClassFilter)
+        assertEquals(4, vm.uiState.value.filteredClasses.size)
+
+        // Search query
+        vm.onSearchQueryChange("Physics")
+        assertEquals(1, vm.uiState.value.filteredAllocations.size)
+        assertEquals("Advanced Physics", vm.uiState.value.filteredAllocations.first().subjectName)
+
+        // Section inspection
+        val sectionToInspect = vm.uiState.value.sections.first()
+        vm.inspectSection(sectionToInspect)
+        assertEquals(sectionToInspect.id, vm.uiState.value.selectedSectionForInspection?.id)
+        vm.closeSectionInspection()
+        assertNull(vm.uiState.value.selectedSectionForInspection)
+    }
+
+    @Test
+    fun verifyClassManagementViewModelValidationForClassAndSectionCreation() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.classes.presentation.ClassManagementViewModel()
+
+        // Blank class name should fail
+        vm.createClass("", "G08", 8, "General")
+        assertEquals("Class Name and Code are required.", vm.uiState.value.errorMessage)
+
+        // Blank section name should fail
+        vm.createSection("cls_oxf_g10", "", "Room 303", 35, null, null)
+        assertEquals("Class, Section Name, and Room Number are required.", vm.uiState.value.errorMessage)
+
+        // Blank subject allocation should fail
+        vm.createSubjectAllocation("sec_oxf_10a", "", "PHY-101", "tea_01", "Dr. Jenkins", 5, false, "Room 301")
+        assertEquals("Section, Subject Name, and Subject Code are required.", vm.uiState.value.errorMessage)
+    }
 }
+
 
 
 

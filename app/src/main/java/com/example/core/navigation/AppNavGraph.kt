@@ -55,6 +55,8 @@ import com.example.features.students.presentation.StudentListScreen
 import com.example.features.students.presentation.StudentListViewModel
 import com.example.features.teachers.presentation.TeacherListScreen
 import com.example.features.teachers.presentation.TeacherListViewModel
+import com.example.features.classes.presentation.ClassManagementScreen
+import com.example.features.classes.presentation.ClassManagementViewModel
 import com.example.features.splash.SplashScreen
 import com.example.features.splash.SplashViewModel
 import com.example.shared.components.EduBottomNavBar
@@ -79,6 +81,7 @@ fun AppNavGraph(
         AppScreen.MainDashboard.route,
         AppScreen.StudentsList.route,
         AppScreen.TeachersList.route,
+        AppScreen.Classes.route,
         AppScreen.Attendance.route,
         AppScreen.Fees.route,
         AppScreen.Settings.route
@@ -221,6 +224,7 @@ fun AppNavGraph(
                     viewModel = dashboardViewModel,
                     onNavigateToStudents = { safeNavigate(AppScreen.StudentsList) },
                     onNavigateToTeachers = { safeNavigate(AppScreen.TeachersList) },
+                    onNavigateToClasses = { safeNavigate(AppScreen.Classes) },
                     onNavigateToAttendance = { safeNavigate(AppScreen.Attendance) },
                     onNavigateToFees = { safeNavigate(AppScreen.Fees) },
                     onNavigateToProfile = { navController.navigate(AppScreen.Profile.route) }
@@ -243,6 +247,16 @@ fun AppNavGraph(
                 val teacherListViewModel: TeacherListViewModel = viewModel()
                 TeacherListScreen(
                     viewModel = teacherListViewModel,
+                    onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
+                )
+            }
+
+            // Classes, Sections & Routine Route (Phase 10 Class, Section & Subject Allocation Engine)
+            composable(AppScreen.Classes.route) {
+                BackHandler { safeNavigate(AppScreen.MainDashboard) }
+                val classViewModel: ClassManagementViewModel = viewModel()
+                ClassManagementScreen(
+                    viewModel = classViewModel,
                     onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
                 )
             }
