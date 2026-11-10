@@ -5,6 +5,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Apartment
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.School
@@ -55,6 +56,14 @@ sealed class AppScreen(
         title = "Students",
         icon = Icons.Default.School,
         requiredPermission = Permission.STUDENTS_VIEW
+    )
+
+    data object TeachersList : AppScreen(
+        route = "teachers",
+        title = "Faculty & Staff",
+        icon = Icons.Default.Group,
+        requiredPermission = Permission.TEACHERS_VIEW,
+        allowedRoles = setOf(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN, UserRole.TEACHER, UserRole.STAFF)
     )
 
     data object Attendance : AppScreen(
@@ -117,6 +126,7 @@ sealed class AppScreen(
                 Register.route -> Register
                 MainDashboard.route -> MainDashboard
                 StudentsList.route -> StudentsList
+                TeachersList.route -> TeachersList
                 Attendance.route -> Attendance
                 Fees.route -> Fees
                 Profile.route -> Profile

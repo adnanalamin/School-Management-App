@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Scaffold
@@ -50,6 +51,10 @@ import com.example.features.tenant.TenantArchitectureScreen
 import com.example.features.tenant.TenantArchitectureViewModel
 import com.example.features.rbac.RbacMatrixScreen
 import com.example.features.rbac.RbacMatrixViewModel
+import com.example.features.students.presentation.StudentListScreen
+import com.example.features.students.presentation.StudentListViewModel
+import com.example.features.teachers.presentation.TeacherListScreen
+import com.example.features.teachers.presentation.TeacherListViewModel
 import com.example.features.splash.SplashScreen
 import com.example.features.splash.SplashViewModel
 import com.example.shared.components.EduBottomNavBar
@@ -73,6 +78,7 @@ fun AppNavGraph(
     val isBottomBarVisible = currentRoute in listOf(
         AppScreen.MainDashboard.route,
         AppScreen.StudentsList.route,
+        AppScreen.TeachersList.route,
         AppScreen.Attendance.route,
         AppScreen.Fees.route,
         AppScreen.Settings.route
@@ -108,6 +114,9 @@ fun AppNavGraph(
     )
     if (TenantContext.hasPermission(Permission.STUDENTS_VIEW)) {
         bottomNavItems.add(NavItem(AppScreen.StudentsList.route, "Students", Icons.Default.School, "nav_item_students"))
+    }
+    if (TenantContext.hasPermission(Permission.TEACHERS_VIEW)) {
+        bottomNavItems.add(NavItem(AppScreen.TeachersList.route, "Faculty", Icons.Default.Group, "nav_item_teachers"))
     }
     if (TenantContext.hasPermission(Permission.ATTENDANCE_VIEW)) {
         bottomNavItems.add(NavItem(AppScreen.Attendance.route, "Attendance", Icons.Default.CheckCircle, "nav_item_attendance"))
@@ -211,22 +220,30 @@ fun AppNavGraph(
                 DashboardScreen(
                     viewModel = dashboardViewModel,
                     onNavigateToStudents = { safeNavigate(AppScreen.StudentsList) },
+                    onNavigateToTeachers = { safeNavigate(AppScreen.TeachersList) },
                     onNavigateToAttendance = { safeNavigate(AppScreen.Attendance) },
                     onNavigateToFees = { safeNavigate(AppScreen.Fees) },
                     onNavigateToProfile = { navController.navigate(AppScreen.Profile.route) }
                 )
             }
 
-            // Students Directory Route
+            // Students Directory Route (Phase 8 Student Management & Information System - SIS)
             composable(AppScreen.StudentsList.route) {
                 BackHandler { safeNavigate(AppScreen.MainDashboard) }
-                val dashboardViewModel: DashboardViewModel = viewModel()
-                DashboardScreen(
-                    viewModel = dashboardViewModel,
-                    onNavigateToStudents = { safeNavigate(AppScreen.StudentsList) },
-                    onNavigateToAttendance = { safeNavigate(AppScreen.Attendance) },
-                    onNavigateToFees = { safeNavigate(AppScreen.Fees) },
-                    onNavigateToProfile = { navController.navigate(AppScreen.Profile.route) }
+                val studentListViewModel: StudentListViewModel = viewModel()
+                StudentListScreen(
+                    viewModel = studentListViewModel,
+                    onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
+                )
+            }
+
+            // Faculty & Staff Directory Route (Phase 9 Teacher & Staff Management)
+            composable(AppScreen.TeachersList.route) {
+                BackHandler { safeNavigate(AppScreen.MainDashboard) }
+                val teacherListViewModel: TeacherListViewModel = viewModel()
+                TeacherListScreen(
+                    viewModel = teacherListViewModel,
+                    onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
                 )
             }
 

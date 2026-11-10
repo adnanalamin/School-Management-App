@@ -519,7 +519,337 @@ class ExampleUnitTest {
         vm.assumeRoleForActiveSession(UserRole.TEACHER)
         assertEquals(UserRole.TEACHER, TenantContext.activeUserRole.value)
     }
+
+    @Test
+    fun verifyStudentProfileFirestoreSerializationAndDeserialization() {
+        val student = com.example.features.students.domain.StudentProfile(
+            id = "stu_oxf_test_01",
+            schoolId = "sch_oxford_01",
+            firstName = "Lucas",
+            lastName = "Vance",
+            fullName = "Lucas Vance",
+            rollNumber = "OXF-09B-004",
+            admissionNumber = "ADM-OXF-2026-1004",
+            gradeLevel = "Grade 9",
+            section = "Section B",
+            dateOfBirth = "2011-11-03",
+            gender = "Male",
+            bloodGroup = "AB-",
+            status = com.example.features.students.domain.StudentStatus.ACTIVE,
+            guardianName = "Dr. Marcus Vance",
+            guardianRelationship = "Father",
+            guardianPhone = "+1 555-0104",
+            guardianEmail = "vance.parent@gmail.com",
+            address = "104 Harvard Square, Cambridge, MA",
+            emergencyContact = "+1 555-0106",
+            medicalNotes = "Wears corrective eyewear.",
+            enrollmentDate = "2025-08-22"
+        )
+
+        val map = student.toFirestoreMap()
+        assertEquals("stu_oxf_test_01", map["id"])
+        assertEquals("sch_oxford_01", map["schoolId"])
+        assertEquals("Lucas Vance", map["fullName"])
+        assertEquals("OXF-09B-004", map["rollNumber"])
+        assertEquals("Grade 9", map["gradeLevel"])
+        assertEquals("Section B", map["section"])
+        assertEquals("ACTIVE", map["status"])
+
+        val deserialized = com.example.features.students.domain.StudentProfile.fromFirestoreMap(
+            student.id,
+            student.schoolId,
+            map
+        )
+        assertEquals(student.id, deserialized.id)
+        assertEquals(student.schoolId, deserialized.schoolId)
+        assertEquals(student.firstName, deserialized.firstName)
+        assertEquals(student.lastName, deserialized.lastName)
+        assertEquals(student.fullName, deserialized.fullName)
+        assertEquals(student.rollNumber, deserialized.rollNumber)
+        assertEquals(student.admissionNumber, deserialized.admissionNumber)
+        assertEquals(student.gradeLevel, deserialized.gradeLevel)
+        assertEquals(student.section, deserialized.section)
+        assertEquals(student.bloodGroup, deserialized.bloodGroup)
+        assertEquals(student.status, deserialized.status)
+        assertEquals(student.guardianName, deserialized.guardianName)
+        assertEquals(student.medicalNotes, deserialized.medicalNotes)
+    }
+
+    @Test
+    fun verifyStudentRepositoryRollNumberAndIdentifierGeneration() {
+        val repo = com.example.features.students.data.StudentRepository()
+        val schoolId = "sch_oxford_01"
+
+        val roll = repo.generateUniqueRollNumber(schoolId, "Grade 10", "Section A")
+        assertTrue(roll.startsWith("OXF-10A-"))
+
+        val adm = repo.generateAdmissionNumber(schoolId)
+        assertTrue(adm.startsWith("ADM-OXF-2026-"))
+    }
+
+    @Test
+    fun verifyStudentListViewModelFilteringAndSorting() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.students.presentation.StudentListViewModel()
+
+        assertEquals(5, vm.uiState.value.totalStudentsCount)
+        assertEquals(5, vm.uiState.value.filteredStudents.size)
+
+        // Filter by Grade
+        vm.onGradeFilterChange("Grade 10")
+        assertEquals(2, vm.uiState.value.filteredStudents.size)
+        assertTrue(vm.uiState.value.filteredStudents.all { it.gradeLevel == "Grade 10" })
+
+        // Filter by Section
+        vm.onSectionFilterChange("Section A")
+        assertEquals(2, vm.uiState.value.filteredStudents.size)
+
+        // Search query
+        vm.onSearchQueryChange("Amina")
+        assertEquals(1, vm.uiState.value.filteredStudents.size)
+        assertEquals("Amina Rahman", vm.uiState.value.filteredStudents.first().fullName)
+
+        // Clear filters
+        vm.clearFilters()
+        assertEquals(5, vm.uiState.value.filteredStudents.size)
+
+        // Sort test
+        vm.onSortChange(com.example.features.students.presentation.StudentSortOption.NAME_DESC)
+        assertEquals("Sophia Chen", vm.uiState.value.filteredStudents.first().fullName)
+    }
+
+    @Test
+    fun verifyStudentEnrollmentWizardStepValidationAndProgression() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.students.presentation.StudentEnrollmentViewModel()
+
+        assertEquals(0, vm.uiState.value.currentStep)
+
+        // Empty first name should fail validation
+        assertFalse(vm.nextStep())
+        assertEquals("Student first name is required.", vm.uiState.value.errorMessage)
+
+        vm.onFirstNameChange("Daniel")
+        vm.onLastNameChange("Craig")
+        assertNull(vm.uiState.value.errorMessage)
+
+        // Advance to Step 1 (Guardian)
+        assertTrue(vm.nextStep())
+        assertEquals(1, vm.uiState.value.currentStep)
+
+        // Empty guardian name should fail validation
+        assertFalse(vm.nextStep())
+        assertEquals("Guardian full name is required.", vm.uiState.value.errorMessage)
+
+        vm.onGuardianNameChange("Timothy Craig")
+        vm.onGuardianPhoneChange("+1 555-7788")
+        vm.onAddressChange("12 West End Ave")
+        assertNull(vm.uiState.value.errorMessage)
+
+        // Advance to Step 2 (Health & Medical)
+        assertTrue(vm.nextStep())
+        assertEquals(2, vm.uiState.value.currentStep)
+
+        // Advance to Step 3 (Review & Confirmation)
+        assertTrue(vm.nextStep())
+        assertEquals(3, vm.uiState.value.currentStep)
+
+        // Test step rollback
+        assertTrue(vm.previousStep())
+        assertEquals(2, vm.uiState.value.currentStep)
+    }
+
+    @Test
+    fun verifyTeacherProfileFirestoreSerializationAndDeserialization() {
+        val teacher = com.example.features.teachers.domain.TeacherProfile(
+            id = "tea_test_99",
+            schoolId = "sch_oxford_01",
+            employeeId = "OXF-SCI-101",
+            firstName = "Sarah",
+            lastName = "Jenkins",
+            fullName = "Dr. Sarah Jenkins",
+            designation = "Head of Department",
+            department = "Science & Mathematics",
+            primarySubject = "Advanced Physics",
+            additionalSubjects = listOf("AP Physics", "Astronomy"),
+            qualification = "Ph.D. Astrophysics, M.Sc. Physics",
+            joiningDate = "2019-08-15",
+            experienceYears = 12,
+            email = "teacher.sarah@oxfordacademy.edu",
+            phone = "+1 555-0201",
+            emergencyContact = "+1 555-0209",
+            address = "77 Commonwealth Ave, Boston, MA",
+            assignedClassId = "Grade 10",
+            assignedSectionId = "Section A",
+            isClassTeacher = true,
+            bloodGroup = "O+",
+            salaryTier = "Tier 1 - Executive Faculty",
+            status = com.example.features.teachers.domain.TeacherStatus.ACTIVE
+        )
+
+        val map = teacher.toFirestoreMap()
+        assertEquals("tea_test_99", map["id"])
+        assertEquals("sch_oxford_01", map["schoolId"])
+        assertEquals("OXF-SCI-101", map["employeeId"])
+        assertEquals("Dr. Sarah Jenkins", map["fullName"])
+        assertEquals("Advanced Physics", map["primarySubject"])
+        assertEquals("ACTIVE", map["status"])
+        assertEquals(12, map["experienceYears"])
+        assertEquals(true, map["isClassTeacher"])
+        assertEquals("Grade 10", map["assignedClassId"])
+
+        val deserialized = com.example.features.teachers.domain.TeacherProfile.fromFirestoreMap(
+            teacher.id,
+            teacher.schoolId,
+            map
+        )
+        assertEquals(teacher.id, deserialized.id)
+        assertEquals(teacher.schoolId, deserialized.schoolId)
+        assertEquals(teacher.employeeId, deserialized.employeeId)
+        assertEquals(teacher.firstName, deserialized.firstName)
+        assertEquals(teacher.lastName, deserialized.lastName)
+        assertEquals(teacher.fullName, deserialized.fullName)
+        assertEquals(teacher.designation, deserialized.designation)
+        assertEquals(teacher.department, deserialized.department)
+        assertEquals(teacher.primarySubject, deserialized.primarySubject)
+        assertEquals(2, deserialized.additionalSubjects.size)
+        assertTrue(deserialized.additionalSubjects.contains("AP Physics"))
+        assertEquals(teacher.qualification, deserialized.qualification)
+        assertEquals(teacher.experienceYears, deserialized.experienceYears)
+        assertEquals(teacher.email, deserialized.email)
+        assertEquals(teacher.phone, deserialized.phone)
+        assertEquals(teacher.assignedClassId, deserialized.assignedClassId)
+        assertEquals(teacher.assignedSectionId, deserialized.assignedSectionId)
+        assertTrue(deserialized.isClassTeacher)
+        assertEquals(teacher.status, deserialized.status)
+    }
+
+    @Test
+    fun verifyTeacherRepositoryEmployeeIdGenerationAndDepartmentFiltering() {
+        val repo = com.example.features.teachers.data.TeacherRepository()
+        val schoolId = "sch_oxford_01"
+
+        val sciId = repo.generateEmployeeId(schoolId, "Science & Mathematics")
+        assertTrue(sciId.startsWith("OXF-SCI-"))
+
+        val lanId = repo.generateEmployeeId(schoolId, "Languages & Literature")
+        assertTrue(lanId.startsWith("OXF-LAN-"))
+
+        val humId = repo.generateEmployeeId(schoolId, "Social Sciences & Humanities")
+        assertTrue(humId.startsWith("OXF-HUM-"))
+
+        val oxfordTeachers = repo.getPreSeededTeachers("sch_oxford_01")
+        assertEquals(5, oxfordTeachers.size)
+        assertTrue(oxfordTeachers.all { it.schoolId == "sch_oxford_01" })
+
+        val cambridgeTeachers = repo.getPreSeededTeachers("sch_cambridge_101")
+        assertEquals(3, cambridgeTeachers.size)
+        assertTrue(cambridgeTeachers.all { it.schoolId == "sch_cambridge_101" })
+    }
+
+    @Test
+    fun verifyTeacherListViewModelFilteringAndSorting() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.teachers.presentation.TeacherListViewModel()
+
+        assertEquals(5, vm.uiState.value.totalFacultyCount)
+        assertEquals(5, vm.uiState.value.filteredTeachers.size)
+
+        // Department filter
+        vm.onDepartmentFilterChange("Science & Mathematics")
+        assertEquals(3, vm.uiState.value.filteredTeachers.size)
+        assertTrue(vm.uiState.value.filteredTeachers.all { it.department == "Science & Mathematics" })
+
+        // Status filter
+        vm.onStatusFilterChange(com.example.features.teachers.domain.TeacherStatus.ON_LEAVE)
+        assertEquals(1, vm.uiState.value.filteredTeachers.size)
+        assertEquals("Elena Rostova", vm.uiState.value.filteredTeachers.first().fullName)
+
+        // Clear filters
+        vm.clearFilters()
+        assertEquals(5, vm.uiState.value.filteredTeachers.size)
+
+        // Search query
+        vm.onSearchQueryChange("Physics")
+        assertEquals(1, vm.uiState.value.filteredTeachers.size)
+        assertEquals("Dr. Sarah Jenkins", vm.uiState.value.filteredTeachers.first().fullName)
+
+        vm.clearFilters()
+
+        // Sort by experience high-to-low
+        vm.onSortChange(com.example.features.teachers.presentation.TeacherSortOption.EXPERIENCE_DESC)
+        assertEquals("Dr. Sarah Jenkins", vm.uiState.value.filteredTeachers.first().fullName)
+        assertEquals(12, vm.uiState.value.filteredTeachers.first().experienceYears)
+
+        // Detail dialog selection
+        val teacher = vm.uiState.value.filteredTeachers.first()
+        vm.selectTeacherForDetail(teacher)
+        assertEquals(teacher.id, vm.uiState.value.selectedTeacherForDetail?.id)
+        vm.clearSelectedTeacher()
+        assertNull(vm.uiState.value.selectedTeacherForDetail)
+    }
+
+    @Test
+    fun verifyTeacherOnboardingWizardStepValidationAndProgression() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.teachers.presentation.TeacherOnboardingViewModel()
+
+        assertEquals(0, vm.uiState.value.currentStep)
+
+        // Step 0: Blank first name should fail
+        assertFalse(vm.nextStep())
+        assertEquals("Teacher first name is required.", vm.uiState.value.errorMessage)
+
+        vm.onFirstNameChange("Katherine")
+        assertFalse(vm.nextStep())
+        assertEquals("Teacher last name is required.", vm.uiState.value.errorMessage)
+
+        vm.onLastNameChange("Johnson")
+        assertFalse(vm.nextStep())
+        assertEquals("Faculty email is required.", vm.uiState.value.errorMessage)
+
+        vm.onEmailChange("katherine.j@oxfordacademy.edu")
+        assertFalse(vm.nextStep())
+        assertEquals("Contact phone number is required.", vm.uiState.value.errorMessage)
+
+        vm.onPhoneChange("+1 555-0301")
+        assertNull(vm.uiState.value.errorMessage)
+
+        // Advance to Step 1 (Academic & Employment)
+        assertTrue(vm.nextStep())
+        assertEquals(1, vm.uiState.value.currentStep)
+
+        // Step 1: Blank qualification should fail
+        vm.onQualificationChange("")
+        assertFalse(vm.nextStep())
+        assertEquals("Academic qualification is required.", vm.uiState.value.errorMessage)
+
+        vm.onQualificationChange("Ph.D. Applied Mathematics")
+        assertNull(vm.uiState.value.errorMessage)
+
+        // Advance to Step 2 (Subject & Class Allocation)
+        assertTrue(vm.nextStep())
+        assertEquals(2, vm.uiState.value.currentStep)
+
+        // Step 2: Blank primary subject should fail
+        vm.onPrimarySubjectChange("")
+        assertFalse(vm.nextStep())
+        assertEquals("Primary subject is required.", vm.uiState.value.errorMessage)
+
+        vm.onPrimarySubjectChange("Orbital Mechanics & Calculus")
+        assertNull(vm.uiState.value.errorMessage)
+
+        // Advance to Step 3 (Review & Confirmation)
+        assertTrue(vm.nextStep())
+        assertEquals(3, vm.uiState.value.currentStep)
+
+        // Rollback test
+        assertTrue(vm.previousStep())
+        assertEquals(2, vm.uiState.value.currentStep)
+    }
 }
+
+
 
 
 

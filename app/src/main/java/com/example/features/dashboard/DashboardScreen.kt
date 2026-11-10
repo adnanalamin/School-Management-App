@@ -69,6 +69,7 @@ import com.example.shared.components.EduTenantTopAppBar
 fun DashboardScreen(
     viewModel: DashboardViewModel,
     onNavigateToStudents: () -> Unit,
+    onNavigateToTeachers: () -> Unit = {},
     onNavigateToAttendance: () -> Unit,
     onNavigateToFees: () -> Unit,
     onNavigateToProfile: () -> Unit,
@@ -158,6 +159,7 @@ fun DashboardScreen(
                         trendText = "94 active",
                         isPositiveTrend = true,
                         modifier = Modifier.weight(1f),
+                        onClick = onNavigateToTeachers,
                         testTag = "dash_stat_teachers"
                     )
                 }
@@ -220,8 +222,16 @@ fun DashboardScreen(
                         QuickActionButton(
                             label = "Enroll Student",
                             icon = Icons.Default.PersonAdd,
-                            onClick = { viewModel.triggerQuickAction("Student Enrollment") },
+                            onClick = onNavigateToStudents,
                             testTag = "action_enroll_student"
+                        )
+                    }
+                    if (viewModel.hasPermission(Permission.TEACHERS_CREATE)) {
+                        QuickActionButton(
+                            label = "Add Faculty",
+                            icon = Icons.Default.Group,
+                            onClick = onNavigateToTeachers,
+                            testTag = "action_add_faculty"
                         )
                     }
                     if (viewModel.hasPermission(Permission.FEES_COLLECT)) {

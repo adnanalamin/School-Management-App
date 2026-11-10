@@ -60,6 +60,99 @@
         "status"
       ]
     },
+    "StudentProfile": {
+      "title": "StudentProfile",
+      "description": "Complete student record for Student Information System (SIS)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "fullName": { "type": "string" },
+        "rollNumber": { "type": "string" },
+        "admissionNumber": { "type": "string" },
+        "gradeLevel": { "type": "string" },
+        "section": { "type": "string" },
+        "dateOfBirth": { "type": "string" },
+        "gender": { "type": "string" },
+        "bloodGroup": { "type": "string" },
+        "status": { "type": "string" },
+        "guardianName": { "type": "string" },
+        "guardianRelationship": { "type": "string" },
+        "guardianPhone": { "type": "string" },
+        "guardianEmail": { "type": "string" },
+        "address": { "type": "string" },
+        "emergencyContact": { "type": "string" },
+        "medicalNotes": { "type": "string" },
+        "enrollmentDate": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "schoolId",
+        "firstName",
+        "lastName",
+        "fullName",
+        "rollNumber",
+        "admissionNumber",
+        "gradeLevel",
+        "section",
+        "status"
+      ]
+    },
+    "TeacherProfile": {
+      "title": "TeacherProfile",
+      "description": "Complete faculty and staff member record (Phase 9 Teacher & Staff Management)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "fullName": { "type": "string" },
+        "designation": { "type": "string" },
+        "department": { "type": "string" },
+        "primarySubject": { "type": "string" },
+        "additionalSubjects": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "qualification": { "type": "string" },
+        "joiningDate": { "type": "string" },
+        "experienceYears": { "type": "integer" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "emergencyContact": { "type": "string" },
+        "address": { "type": "string" },
+        "assignedClassId": { "type": "string" },
+        "assignedSectionId": { "type": "string" },
+        "isClassTeacher": { "type": "boolean" },
+        "bloodGroup": { "type": "string" },
+        "salaryTier": { "type": "string" },
+        "status": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "schoolId",
+        "employeeId",
+        "firstName",
+        "lastName",
+        "fullName",
+        "designation",
+        "department",
+        "primarySubject",
+        "qualification",
+        "email",
+        "phone",
+        "status"
+      ]
+    },
     "TenantEntity": {
       "title": "TenantEntity",
       "description": "General representation of a tenant-scoped record in any of the 15 isolated subcollections",
@@ -86,12 +179,12 @@
       "description": "School institutions containing full 12-field registration metadata"
     },
     "/schools/{schoolId}/students/{studentId}": {
-      "schema": "TenantEntity",
-      "description": "Subcollection 1: Student enrollment records"
+      "schema": "StudentProfile",
+      "description": "Subcollection 1: Student Information System (SIS) enrollment records"
     },
     "/schools/{schoolId}/teachers/{teacherId}": {
-      "schema": "TenantEntity",
-      "description": "Subcollection 2: Teacher faculty records"
+      "schema": "TeacherProfile",
+      "description": "Subcollection 2: Teacher faculty and staff records"
     },
     "/schools/{schoolId}/parents/{parentId}": {
       "schema": "TenantEntity",
