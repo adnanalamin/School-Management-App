@@ -5,9 +5,12 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Apartment
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.MeetingRoom
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.MeetingRoom
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Settings
@@ -90,6 +93,27 @@ sealed class AppScreen(
         allowedRoles = setOf(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN, UserRole.ACCOUNTANT, UserRole.PARENT)
     )
 
+    data object Exams : AppScreen(
+        route = "exams",
+        title = "Examinations",
+        icon = Icons.Default.DateRange,
+        requiredPermission = Permission.EXAMS_VIEW
+    )
+
+    data object Results : AppScreen(
+        route = "results",
+        title = "Gradebook & Results",
+        icon = Icons.Default.Assessment,
+        requiredPermission = Permission.RESULTS_VIEW
+    )
+
+    data object Notices : AppScreen(
+        route = "notices",
+        title = "Noticeboard",
+        icon = Icons.Default.Notifications,
+        requiredPermission = Permission.NOTICES_VIEW
+    )
+
     data object Profile : AppScreen(
         route = "profile",
         title = "Profile",
@@ -139,6 +163,9 @@ sealed class AppScreen(
                 Classes.route -> Classes
                 Attendance.route -> Attendance
                 Fees.route -> Fees
+                Exams.route -> Exams
+                Results.route -> Results
+                Notices.route -> Notices
                 Profile.route -> Profile
                 Settings.route -> Settings
                 DesignSystem.route -> DesignSystem

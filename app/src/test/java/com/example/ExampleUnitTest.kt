@@ -1036,6 +1036,565 @@ class ExampleUnitTest {
         vm.createSubjectAllocation("sec_oxf_10a", "", "PHY-101", "tea_01", "Dr. Jenkins", 5, false, "Room 301")
         assertEquals("Section, Subject Name, and Subject Code are required.", vm.uiState.value.errorMessage)
     }
+
+    @Test
+    fun verifyAttendanceModelsFirestoreSerializationAndDeserialization() {
+        val entry = com.example.features.attendance.domain.StudentAttendanceEntry(
+            studentId = "stu_oxf_01",
+            studentName = "Amina Rahman",
+            rollNumber = "OXF-10A-001",
+            status = com.example.features.attendance.domain.AttendanceStatus.PRESENT,
+            remarks = "Prompt on time"
+        )
+        val entryMap = entry.toFirestoreMap()
+        assertEquals("stu_oxf_01", entryMap["studentId"])
+        assertEquals("Amina Rahman", entryMap["studentName"])
+        assertEquals("PRESENT", entryMap["status"])
+        assertEquals("Prompt on time", entryMap["remarks"])
+
+        val deserializedEntry = com.example.features.attendance.domain.StudentAttendanceEntry.fromFirestoreMap(entryMap)
+        assertEquals(entry.studentId, deserializedEntry.studentId)
+        assertEquals(entry.studentName, deserializedEntry.studentName)
+        assertEquals(entry.status, deserializedEntry.status)
+        assertEquals(entry.remarks, deserializedEntry.remarks)
+
+        val auditLog = com.example.features.attendance.domain.AttendanceAuditLog(
+            timestamp = 1711270000000L,
+            actorId = "tea_oxf_01",
+            actorName = "Dr. Sarah Jenkins",
+            action = "FINALIZED",
+            notes = "Morning roll call verified"
+        )
+        val auditMap = auditLog.toFirestoreMap()
+        assertEquals("FINALIZED", auditMap["action"])
+        assertEquals("Dr. Sarah Jenkins", auditMap["actorName"])
+
+        val deserializedAudit = com.example.features.attendance.domain.AttendanceAuditLog.fromFirestoreMap(auditMap)
+        assertEquals(auditLog.action, deserializedAudit.action)
+        assertEquals(auditLog.notes, deserializedAudit.notes)
+
+        val record = com.example.features.attendance.domain.AttendanceRecord.createWithMetrics(
+            id = "att_test_10a",
+            schoolId = "sch_oxford_01",
+            date = "2026-03-24",
+            classId = "cls_oxf_g10",
+            className = "Grade 10",
+            sectionId = "sec_oxf_10a",
+            sectionName = "Section A",
+            markedById = "tea_oxf_01",
+            markedByName = "Dr. Sarah Jenkins",
+            entries = listOf(
+                entry,
+                com.example.features.attendance.domain.StudentAttendanceEntry(
+                    studentId = "stu_oxf_02",
+                    studentName = "Oliver Smith",
+                    rollNumber = "OXF-10A-002",
+                    status = com.example.features.attendance.domain.AttendanceStatus.ABSENT
+                )
+            ),
+            auditTrail = listOf(auditLog),
+            isFinalized = true
+        )
+
+        assertEquals(2, record.totalStudents)
+        assertEquals(1, record.presentCount)
+        assertEquals(1, record.absentCount)
+        assertEquals(50.0f, record.attendancePercentage)
+
+        val recordMap = record.toFirestoreMap()
+        val deserializedRecord = com.example.features.attendance.domain.AttendanceRecord.fromFirestoreMap(
+            record.id,
+            record.schoolId,
+            recordMap
+        )
+        assertEquals(record.id, deserializedRecord.id)
+        assertEquals(record.date, deserializedRecord.date)
+        assertEquals(record.className, deserializedRecord.className)
+        assertEquals(record.isFinalized, deserializedRecord.isFinalized)
+        assertEquals(2, deserializedRecord.entries.size)
+        assertEquals(1, deserializedRecord.auditTrail.size)
+        assertEquals(50.0f, deserializedRecord.attendancePercentage)
+    }
+
+    @Test
+    fun verifyAttendanceRepositoryPreSeededRecordsAndTenantFirewall() {
+        val repo = com.example.features.attendance.data.AttendanceRepository()
+        val oxfordRecords = repo.getPreSeededRecords("sch_oxford_01")
+        assertEquals(3, oxfordRecords.size)
+        assertTrue(oxfordRecords.all { it.schoolId == "sch_oxford_01" })
+
+        val cambridgeRecords = repo.getPreSeededRecords("sch_cambridge_101")
+        assertEquals(1, cambridgeRecords.size)
+        assertTrue(cambridgeRecords.all { it.schoolId == "sch_cambridge_101" })
+
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        var firewallBlocked = false
+        try {
+            com.example.core.tenant.TenantPathProvider.verifyTenantBoundary("sch_cambridge_101")
+        } catch (e: AppError.SecurityViolation) {
+            firewallBlocked = true
+        }
+        assertTrue(firewallBlocked)
+    }
+
+    @Test
+    fun verifyAttendanceViewModelRollCallStatusTogglingAndMetrics() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.attendance.presentation.AttendanceViewModel()
+
+        assertEquals("2026-03-24", vm.uiState.value.selectedDate)
+        assertEquals(5, vm.uiState.value.editableEntries.size)
+        assertEquals(5, vm.uiState.value.totalEnrolled)
+
+        // Today record is finalized initially: test unlocking first
+        vm.openReopenDialog()
+        assertTrue(vm.uiState.value.showReopenDialog)
+        vm.reopenRegister("Correction for test")
+        assertFalse(vm.uiState.value.isFinalized)
+
+        // Now test toggling student status
+        val firstStudentId = vm.uiState.value.editableEntries.first().studentId
+        vm.updateStudentStatus(firstStudentId, com.example.features.attendance.domain.AttendanceStatus.ABSENT)
+        val updatedFirst = vm.uiState.value.editableEntries.first { it.studentId == firstStudentId }
+        assertEquals(com.example.features.attendance.domain.AttendanceStatus.ABSENT, updatedFirst.status)
+        assertEquals(1, vm.uiState.value.absentCount)
+
+        // Bulk Mark All Present
+        vm.markAllPresent()
+        assertTrue(vm.uiState.value.editableEntries.all { it.status == com.example.features.attendance.domain.AttendanceStatus.PRESENT })
+        assertEquals(5, vm.uiState.value.presentCount)
+        assertEquals(0, vm.uiState.value.absentCount)
+        assertEquals(100.0f, vm.uiState.value.presentPercentage)
+
+        // Bulk Mark All Absent
+        vm.markAllAbsent()
+        assertTrue(vm.uiState.value.editableEntries.all { it.status == com.example.features.attendance.domain.AttendanceStatus.ABSENT })
+        assertEquals(0, vm.uiState.value.presentCount)
+        assertEquals(5, vm.uiState.value.absentCount)
+        assertEquals(0.0f, vm.uiState.value.presentPercentage)
+    }
+
+    @Test
+    fun verifyAttendanceViewModelFinalizationAndAuditLock() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.attendance.presentation.AttendanceViewModel()
+
+        // Remarks updating
+        val student = vm.uiState.value.editableEntries.first()
+        vm.openRemarksDialog(student)
+        assertTrue(vm.uiState.value.showRemarksDialog)
+        assertEquals(student.studentId, vm.uiState.value.selectedEntryForRemarks?.studentId)
+
+        vm.onRemarksInputChanged("Medical excusal certificate verified")
+        vm.saveRemarks()
+        assertFalse(vm.uiState.value.showRemarksDialog)
+        val updatedStudent = vm.uiState.value.editableEntries.first { it.studentId == student.studentId }
+        assertEquals("Medical excusal certificate verified", updatedStudent.remarks)
+
+        // Finalize register
+        vm.finalizeRegister()
+        assertTrue(vm.uiState.value.isFinalized)
+
+        // Attempting to change status when finalized should be blocked
+        vm.updateStudentStatus(student.studentId, com.example.features.attendance.domain.AttendanceStatus.ABSENT)
+        assertNotNull(vm.uiState.value.errorMessage)
+        assertTrue(vm.uiState.value.errorMessage!!.contains("finalized and locked"))
+    }
+
+    @Test
+    fun verifyFeeInvoiceModelGrossNetCalculationsAndSerialization() {
+        val items = listOf(
+            com.example.features.fees.domain.FeeItem("fi_01", com.example.features.fees.domain.FeeCategory.TUITION, "Tuition", 1000.0),
+            com.example.features.fees.domain.FeeItem("fi_02", com.example.features.fees.domain.FeeCategory.LABORATORY, "Lab", 200.0)
+        )
+        val invoice = com.example.features.fees.domain.FeeInvoice.createInvoice(
+            id = "inv_test_01",
+            schoolId = "sch_oxford_01",
+            invoiceNumber = "INV-OXF-2026-9999",
+            studentId = "stu_01",
+            studentName = "Amina Rahman",
+            rollNumber = "OXF-10A-001",
+            gradeLevel = "Grade 10",
+            section = "Section A",
+            academicTerm = "Term 1",
+            dueDate = "2026-04-15",
+            items = items,
+            discountAmount = 100.0,
+            fineAmount = 50.0,
+            paidAmount = 300.0
+        )
+
+        assertEquals(1150.0, invoice.totalAmount, 0.001)
+        assertEquals(300.0, invoice.paidAmount, 0.001)
+        assertEquals(850.0, invoice.dueAmount, 0.001)
+        assertEquals(com.example.features.fees.domain.InvoiceStatus.PARTIAL, invoice.status)
+
+        val map = invoice.toFirestoreMap()
+        assertEquals("inv_test_01", map["id"])
+        assertEquals("INV-OXF-2026-9999", map["invoiceNumber"])
+        assertEquals(1150.0, map["totalAmount"])
+        assertEquals(850.0, map["dueAmount"])
+        assertEquals("PARTIAL", map["status"])
+
+        val deserialized = com.example.features.fees.domain.FeeInvoice.fromFirestoreMap(invoice.id, invoice.schoolId, map)
+        assertEquals(invoice.id, deserialized.id)
+        assertEquals(invoice.invoiceNumber, deserialized.invoiceNumber)
+        assertEquals(invoice.totalAmount, deserialized.totalAmount, 0.001)
+        assertEquals(invoice.dueAmount, deserialized.dueAmount, 0.001)
+        assertEquals(invoice.status, deserialized.status)
+        assertEquals(2, deserialized.items.size)
+    }
+
+    @Test
+    fun verifyFeeRepositoryPreSeededInvoicesAndTenantFirewall() {
+        val repo = com.example.features.fees.data.FeeRepository()
+        val oxfordInvoices = repo.getPreSeededInvoices("sch_oxford_01")
+        assertEquals(5, oxfordInvoices.size)
+        assertTrue(oxfordInvoices.all { it.schoolId == "sch_oxford_01" })
+
+        val cambridgeInvoices = repo.getPreSeededInvoices("sch_cambridge_101")
+        assertEquals(3, cambridgeInvoices.size)
+        assertTrue(cambridgeInvoices.all { it.schoolId == "sch_cambridge_101" })
+
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        var firewallBlocked = false
+        try {
+            com.example.core.tenant.TenantPathProvider.verifyTenantBoundary("sch_cambridge_101")
+        } catch (e: AppError.SecurityViolation) {
+            firewallBlocked = true
+        }
+        assertTrue(firewallBlocked)
+    }
+
+    @Test
+    fun verifyFeeViewModelFilteringMetricsAndPaymentCollection() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.fees.presentation.FeeViewModel()
+
+        assertEquals(5, vm.uiState.value.invoices.size)
+        assertEquals(5, vm.uiState.value.filteredInvoices.size)
+        assertTrue(vm.uiState.value.totalBilled > 0.0)
+        assertTrue(vm.uiState.value.totalCollected > 0.0)
+        assertTrue(vm.uiState.value.totalOutstanding > 0.0)
+        assertEquals(1, vm.uiState.value.overdueCount)
+
+        // Status Filter
+        vm.onStatusFilterChange(com.example.features.fees.domain.InvoiceStatus.OVERDUE)
+        assertEquals(1, vm.uiState.value.filteredInvoices.size)
+        assertEquals("inv_oxf_03", vm.uiState.value.filteredInvoices.first().id)
+
+        vm.onStatusFilterChange(com.example.features.fees.domain.InvoiceStatus.PAID)
+        assertEquals(2, vm.uiState.value.filteredInvoices.size)
+
+        // Clear filter
+        vm.clearFilters()
+        assertEquals(5, vm.uiState.value.filteredInvoices.size)
+
+        // Search Filter
+        vm.onSearchQueryChange("Amina")
+        assertEquals(1, vm.uiState.value.filteredInvoices.size)
+        assertEquals("Amina Rahman", vm.uiState.value.filteredInvoices.first().studentName)
+
+        vm.clearFilters()
+
+        // Test Payment Collection on partial invoice
+        val partialInvoice = vm.uiState.value.invoices.first { it.status == com.example.features.fees.domain.InvoiceStatus.PARTIAL }
+        val remainingDue = partialInvoice.dueAmount
+        val initialPaid = partialInvoice.paidAmount
+
+        vm.openPaymentDialog(partialInvoice)
+        assertTrue(vm.uiState.value.showPaymentDialog)
+        assertEquals(partialInvoice.id, vm.uiState.value.selectedInvoiceForPayment?.id)
+
+        // Settle remaining balance
+        vm.recordPayment(partialInvoice.id, remainingDue, com.example.features.fees.domain.PaymentMethod.CASH, "Final settlement")
+        assertFalse(vm.uiState.value.showPaymentDialog)
+        assertTrue(vm.uiState.value.showReceiptDialog)
+        assertNotNull(vm.uiState.value.selectedTransactionForReceipt)
+
+        val updatedInvoice = vm.uiState.value.invoices.first { it.id == partialInvoice.id }
+        assertEquals(initialPaid + remainingDue, updatedInvoice.paidAmount, 0.001)
+        assertEquals(0.0, updatedInvoice.dueAmount, 0.001)
+        assertEquals(com.example.features.fees.domain.InvoiceStatus.PAID, updatedInvoice.status)
+        assertEquals(2, updatedInvoice.transactions.size)
+    }
+
+    @Test
+    fun verifyFeeViewModelInvoiceCreationValidation() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.fees.presentation.FeeViewModel()
+
+        val initialCount = vm.uiState.value.invoices.size
+
+        // Blank name should fail
+        vm.createInvoice(studentId = "", studentName = "", rollNumber = "", gradeLevel = "Grade 10", section = "Section A", academicTerm = "Term 1", dueDate = "2026-05-01", tuitionFee = 1000.0)
+        assertEquals("Student Name, Due Date, and Tuition amount are required.", vm.uiState.value.errorMessage)
+        assertEquals(initialCount, vm.uiState.value.invoices.size)
+
+        // Zero tuition should fail
+        vm.createInvoice(studentId = "", studentName = "Valid Name", rollNumber = "R-10", gradeLevel = "Grade 10", section = "Section A", academicTerm = "Term 1", dueDate = "2026-05-01", tuitionFee = 0.0)
+        assertEquals("Student Name, Due Date, and Tuition amount are required.", vm.uiState.value.errorMessage)
+
+        // Valid creation
+        vm.createInvoice(
+            studentId = "stu_dan_01",
+            studentName = "Daniel Craig",
+            rollNumber = "OXF-10A-009",
+            gradeLevel = "Grade 10",
+            section = "Section A",
+            academicTerm = "Term 1 (2026)",
+            dueDate = "2026-05-15",
+            tuitionFee = 1300.0,
+            labFee = 200.0,
+            libraryFee = 50.0,
+            transportFee = 0.0,
+            sportsFee = 0.0,
+            discountAmount = 50.0
+        )
+        assertEquals(initialCount + 1, vm.uiState.value.invoices.size)
+        val created = vm.uiState.value.invoices.last()
+        assertEquals("Daniel Craig", created.studentName)
+        assertEquals(1500.0, created.totalAmount, 0.001)
+        assertEquals(1500.0, created.dueAmount, 0.001)
+        assertEquals(com.example.features.fees.domain.InvoiceStatus.PENDING, created.status)
+    }
+
+    @Test
+    fun verifyExamScheduleAndPaperFirestoreSerializationAndDeserialization() {
+        val paper = com.example.features.exams.domain.ExamPaper(
+            id = "p_test_phy",
+            subjectName = "Advanced Physics",
+            subjectCode = "PHY-101",
+            examDate = "2026-05-10",
+            startTime = "09:00 AM",
+            endTime = "12:00 PM",
+            durationMinutes = 180,
+            totalMarks = 100,
+            passingMarks = 40,
+            roomNumber = "West Wing 301",
+            invigilatorId = "tea_oxf_01",
+            invigilatorName = "Dr. Sarah Jenkins",
+            instructions = "Non-programmable calculators approved."
+        )
+
+        val paperMap = paper.toFirestoreMap()
+        assertEquals("p_test_phy", paperMap["id"])
+        assertEquals("Advanced Physics", paperMap["subjectName"])
+        assertEquals("PHY-101", paperMap["subjectCode"])
+        assertEquals(180, paperMap["durationMinutes"])
+        assertEquals("West Wing 301", paperMap["roomNumber"])
+
+        val deserializedPaper = com.example.features.exams.domain.ExamPaper.fromFirestoreMap(paperMap)
+        assertEquals(paper.id, deserializedPaper.id)
+        assertEquals(paper.subjectName, deserializedPaper.subjectName)
+        assertEquals(paper.subjectCode, deserializedPaper.subjectCode)
+        assertEquals(paper.startTime, deserializedPaper.startTime)
+        assertEquals(paper.endTime, deserializedPaper.endTime)
+        assertEquals(paper.roomNumber, deserializedPaper.roomNumber)
+        assertEquals(paper.invigilatorName, deserializedPaper.invigilatorName)
+
+        val schedule = com.example.features.exams.domain.ExamSchedule(
+            id = "ex_test_mid_10",
+            schoolId = "sch_oxford_01",
+            title = "Midterm Examination Series 2026",
+            examType = com.example.features.exams.domain.ExamType.MIDTERM,
+            academicSession = "2026-2027",
+            gradeLevel = "Grade 10",
+            startDate = "2026-05-10",
+            endDate = "2026-05-14",
+            status = com.example.features.exams.domain.ExamStatus.SCHEDULED,
+            papers = listOf(paper)
+        )
+
+        val scheduleMap = schedule.toFirestoreMap()
+        assertEquals("ex_test_mid_10", scheduleMap["id"])
+        assertEquals("sch_oxford_01", scheduleMap["schoolId"])
+        assertEquals("MIDTERM", scheduleMap["examType"])
+        assertEquals("SCHEDULED", scheduleMap["status"])
+        assertEquals(1, (scheduleMap["papers"] as List<*>).size)
+
+        val deserializedSchedule = com.example.features.exams.domain.ExamSchedule.fromFirestoreMap(
+            schedule.id,
+            schedule.schoolId,
+            scheduleMap
+        )
+        assertEquals(schedule.id, deserializedSchedule.id)
+        assertEquals(schedule.title, deserializedSchedule.title)
+        assertEquals(schedule.examType, deserializedSchedule.examType)
+        assertEquals(schedule.academicSession, deserializedSchedule.academicSession)
+        assertEquals(schedule.gradeLevel, deserializedSchedule.gradeLevel)
+        assertEquals(1, deserializedSchedule.papers.size)
+        assertEquals("Advanced Physics", deserializedSchedule.papers.first().subjectName)
+    }
+
+    @Test
+    fun verifyExamRepositoryTimetableConflictDetectionAndPreSeededData() {
+        val repo = com.example.features.exams.data.ExamRepository()
+
+        // Test Pre-seeded data isolation
+        val oxfordExams = repo.getPreSeededExams("sch_oxford_01")
+        assertEquals(2, oxfordExams.size)
+        assertTrue(oxfordExams.all { it.schoolId == "sch_oxford_01" })
+
+        val cambridgeExams = repo.getPreSeededExams("sch_cambridge_101")
+        assertEquals(1, cambridgeExams.size)
+        assertTrue(cambridgeExams.all { it.schoolId == "sch_cambridge_101" })
+
+        // Test Timetable Conflict Detection Engine
+        val existingPapers = listOf(
+            com.example.features.exams.domain.ExamPaper(
+                id = "p_01",
+                subjectName = "Physics",
+                subjectCode = "PHY-101",
+                examDate = "2026-05-10",
+                startTime = "09:00 AM",
+                endTime = "12:00 PM",
+                roomNumber = "Hall A",
+                invigilatorId = "t1",
+                invigilatorName = "Teacher 1"
+            )
+        )
+
+        // Conflict 1: Same date, same time, same room (Room Conflict)
+        val roomConflict = repo.checkTimetableConflict(
+            existingPapers = existingPapers,
+            newDate = "2026-05-10",
+            newStartTime = "09:00 AM",
+            newEndTime = "12:00 PM",
+            newRoom = "Hall A"
+        )
+        assertNotNull(roomConflict)
+        assertTrue(roomConflict!!.contains("Room Conflict"))
+
+        // Conflict 2: Same date, same time, different room (Cohort Time Conflict)
+        val timeConflict = repo.checkTimetableConflict(
+            existingPapers = existingPapers,
+            newDate = "2026-05-10",
+            newStartTime = "09:00 AM",
+            newEndTime = "12:00 PM",
+            newRoom = "Hall B"
+        )
+        assertNotNull(timeConflict)
+        assertTrue(timeConflict!!.contains("Time Conflict"))
+
+        // No Conflict: Different date or different time
+        val noConflictDate = repo.checkTimetableConflict(
+            existingPapers = existingPapers,
+            newDate = "2026-05-11",
+            newStartTime = "09:00 AM",
+            newEndTime = "12:00 PM",
+            newRoom = "Hall A"
+        )
+        assertNull(noConflictDate)
+
+        val noConflictTime = repo.checkTimetableConflict(
+            existingPapers = existingPapers,
+            newDate = "2026-05-10",
+            newStartTime = "01:00 PM",
+            newEndTime = "04:00 PM",
+            newRoom = "Hall C"
+        )
+        assertNull(noConflictTime)
+    }
+
+    @Test
+    fun verifyExamViewModelFilteringCreationAndHallTicketGeneration() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.exams.presentation.ExamViewModel()
+
+        assertEquals(2, vm.uiState.value.schedules.size)
+        assertEquals(2, vm.uiState.value.filteredSchedules.size)
+        assertEquals(5, vm.uiState.value.totalPapers)
+        assertEquals(2, vm.uiState.value.scheduledSeriesCount)
+
+        // Type Filter
+        vm.setTypeFilter(com.example.features.exams.domain.ExamType.MIDTERM)
+        assertEquals(1, vm.uiState.value.filteredSchedules.size)
+        assertEquals("ex_oxf_mid_g10", vm.uiState.value.filteredSchedules.first().id)
+
+        vm.clearFilters()
+        assertEquals(2, vm.uiState.value.filteredSchedules.size)
+
+        // Search Filter
+        vm.setSearchQuery("Chemistry")
+        assertEquals(1, vm.uiState.value.filteredSchedules.size)
+        assertEquals("ex_oxf_mid_g10", vm.uiState.value.filteredSchedules.first().id)
+
+        vm.clearFilters()
+
+        // Create new examination series
+        vm.createExamSchedule(
+            title = "Periodic Assessment 1",
+            examType = com.example.features.exams.domain.ExamType.PERIODIC,
+            academicSession = "2026-2027",
+            gradeLevel = "Grade 9",
+            startDate = "2026-06-01",
+            endDate = "2026-06-05"
+        )
+        assertEquals(3, vm.uiState.value.schedules.size)
+        val created = vm.uiState.value.schedules.first()
+        assertEquals("Periodic Assessment 1", created.title)
+        assertEquals("Grade 9", created.gradeLevel)
+
+        // Add Paper to newly created series
+        val addPaperSuccess = vm.addPaperToSchedule(
+            scheduleId = created.id,
+            subjectName = "Introductory Biology",
+            subjectCode = "BIO-091",
+            examDate = "2026-06-01",
+            startTime = "09:00 AM",
+            endTime = "11:30 AM",
+            durationMinutes = 150,
+            totalMarks = 80,
+            passingMarks = 32,
+            roomNumber = "Room 101",
+            invigilatorName = "Prof. Alan Turing"
+        )
+        assertTrue(addPaperSuccess)
+        val updatedSchedule = vm.uiState.value.schedules.first { it.id == created.id }
+        assertEquals(1, updatedSchedule.papers.size)
+        assertEquals("Introductory Biology", updatedSchedule.papers.first().subjectName)
+
+        // Test Conflict Detection on Adding Overlapping Paper
+        val conflictAdd = vm.addPaperToSchedule(
+            scheduleId = created.id,
+            subjectName = "General Science",
+            subjectCode = "SCI-092",
+            examDate = "2026-06-01",
+            startTime = "09:00 AM",
+            endTime = "11:30 AM",
+            durationMinutes = 150,
+            totalMarks = 80,
+            passingMarks = 32,
+            roomNumber = "Room 101",
+            invigilatorName = "Prof. Alan Turing"
+        )
+        assertFalse(conflictAdd)
+        assertNotNull(vm.uiState.value.conflictWarning)
+
+        // Test Student Hall Ticket / Admit Card Generation
+        vm.generateStudentHallTicket(
+            schedule = updatedSchedule,
+            studentId = "stu_oxf_01",
+            studentName = "Alexander Hamilton",
+            rollNumber = "OXF-09A-001",
+            admissionNumber = "ADM-OXF-2026-001",
+            gradeLevel = "Grade 9",
+            section = "Section A"
+        )
+
+        assertTrue(vm.uiState.value.showHallTicketDialog)
+        val ticket = vm.uiState.value.generatedHallTicket
+        assertNotNull(ticket)
+        assertEquals("Alexander Hamilton", ticket!!.studentName)
+        assertEquals("OXF-09A-001", ticket.rollNumber)
+        assertEquals("ADM-OXF-2026-001", ticket.admissionNumber)
+        assertEquals("Grade 9", ticket.gradeLevel)
+        assertEquals("Section A", ticket.section)
+        assertTrue(ticket.ticketNumber.startsWith("HT-"))
+        assertEquals(1, ticket.papers.size)
+        assertEquals("Introductory Biology", ticket.papers.first().subjectName)
+    }
 }
 
 

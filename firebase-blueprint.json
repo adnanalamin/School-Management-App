@@ -191,6 +191,95 @@
       },
       "required": ["id", "schoolId", "classId", "name", "roomNumber", "capacity"]
     },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Daily roll call register and audit log container (Phase 11 Attendance Tracking & Audit System)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "date": { "type": "string" },
+        "classId": { "type": "string" },
+        "className": { "type": "string" },
+        "sectionId": { "type": "string" },
+        "sectionName": { "type": "string" },
+        "markedById": { "type": "string" },
+        "markedByName": { "type": "string" },
+        "isFinalized": { "type": "boolean" },
+        "totalStudents": { "type": "integer" },
+        "presentCount": { "type": "integer" },
+        "absentCount": { "type": "integer" },
+        "lateCount": { "type": "integer" },
+        "excusedCount": { "type": "integer" },
+        "attendancePercentage": { "type": "number" },
+        "entries": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "auditTrail": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "schoolId", "date", "classId", "sectionId", "markedById"]
+    },
+    "FeeInvoice": {
+      "title": "FeeInvoice",
+      "description": "Institutional fee invoice and payment ledger container (Phase 12 Fee Structure & Invoicing Engine)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "invoiceNumber": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "rollNumber": { "type": "string" },
+        "gradeLevel": { "type": "string" },
+        "section": { "type": "string" },
+        "academicTerm": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "totalAmount": { "type": "number" },
+        "discountAmount": { "type": "number" },
+        "fineAmount": { "type": "number" },
+        "paidAmount": { "type": "number" },
+        "dueAmount": { "type": "number" },
+        "status": { "type": "string" },
+        "transactions": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "schoolId", "invoiceNumber", "studentName", "dueDate", "totalAmount", "status"]
+    },
+    "ExamSchedule": {
+      "title": "ExamSchedule",
+      "description": "Examination timetable and scheduling series for students and classes (Phase 13)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "title": { "type": "string" },
+        "examType": { "type": "string" },
+        "academicSession": { "type": "string" },
+        "gradeLevel": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "status": { "type": "string" },
+        "papers": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "totalPapers": { "type": "integer" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["id", "schoolId", "title", "examType", "gradeLevel", "startDate", "endDate", "status"]
+    },
     "TenantEntity": {
       "title": "TenantEntity",
       "description": "General representation of a tenant-scoped record in any of the 15 isolated subcollections",
@@ -237,15 +326,15 @@
       "description": "Subcollection 5: Class sections"
     },
     "/schools/{schoolId}/attendance/{attendanceId}": {
-      "schema": "TenantEntity",
+      "schema": "AttendanceRecord",
       "description": "Subcollection 6: Student & teacher daily attendance logs"
     },
     "/schools/{schoolId}/fees/{feeId}": {
-      "schema": "TenantEntity",
+      "schema": "FeeInvoice",
       "description": "Subcollection 7: Fee structures, invoices & payment logs"
     },
     "/schools/{schoolId}/exams/{examId}": {
-      "schema": "TenantEntity",
+      "schema": "ExamSchedule",
       "description": "Subcollection 8: Exam terms and timetables"
     },
     "/schools/{schoolId}/results/{resultId}": {

@@ -57,6 +57,16 @@ import com.example.features.teachers.presentation.TeacherListScreen
 import com.example.features.teachers.presentation.TeacherListViewModel
 import com.example.features.classes.presentation.ClassManagementScreen
 import com.example.features.classes.presentation.ClassManagementViewModel
+import com.example.features.attendance.presentation.AttendanceScreen
+import com.example.features.attendance.presentation.AttendanceViewModel
+import com.example.features.fees.presentation.FeeScreen
+import com.example.features.fees.presentation.FeeViewModel
+import com.example.features.exams.presentation.ExamScreen
+import com.example.features.exams.presentation.ExamViewModel
+import com.example.features.results.presentation.ResultScreen
+import com.example.features.results.presentation.ResultViewModel
+import com.example.features.notices.presentation.NoticeScreen
+import com.example.features.notices.presentation.NoticeViewModel
 import com.example.features.splash.SplashScreen
 import com.example.features.splash.SplashViewModel
 import com.example.shared.components.EduBottomNavBar
@@ -84,6 +94,9 @@ fun AppNavGraph(
         AppScreen.Classes.route,
         AppScreen.Attendance.route,
         AppScreen.Fees.route,
+        AppScreen.Exams.route,
+        AppScreen.Results.route,
+        AppScreen.Notices.route,
         AppScreen.Settings.route
     )
 
@@ -227,6 +240,7 @@ fun AppNavGraph(
                     onNavigateToClasses = { safeNavigate(AppScreen.Classes) },
                     onNavigateToAttendance = { safeNavigate(AppScreen.Attendance) },
                     onNavigateToFees = { safeNavigate(AppScreen.Fees) },
+                    onNavigateToExams = { safeNavigate(AppScreen.Exams) },
                     onNavigateToProfile = { navController.navigate(AppScreen.Profile.route) }
                 )
             }
@@ -261,29 +275,33 @@ fun AppNavGraph(
                 )
             }
 
-            // Attendance Route
+            // Attendance Route (Phase 11 Attendance Tracking & Audit System)
             composable(AppScreen.Attendance.route) {
                 BackHandler { safeNavigate(AppScreen.MainDashboard) }
-                val dashboardViewModel: DashboardViewModel = viewModel()
-                DashboardScreen(
-                    viewModel = dashboardViewModel,
-                    onNavigateToStudents = { safeNavigate(AppScreen.StudentsList) },
-                    onNavigateToAttendance = { safeNavigate(AppScreen.Attendance) },
-                    onNavigateToFees = { safeNavigate(AppScreen.Fees) },
-                    onNavigateToProfile = { navController.navigate(AppScreen.Profile.route) }
+                val attendanceViewModel: AttendanceViewModel = viewModel()
+                AttendanceScreen(
+                    viewModel = attendanceViewModel,
+                    onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
                 )
             }
 
-            // Fees Route
+            // Fees Route (Phase 12 Fee Structure & Invoicing Engine)
             composable(AppScreen.Fees.route) {
                 BackHandler { safeNavigate(AppScreen.MainDashboard) }
-                val dashboardViewModel: DashboardViewModel = viewModel()
-                DashboardScreen(
-                    viewModel = dashboardViewModel,
-                    onNavigateToStudents = { safeNavigate(AppScreen.StudentsList) },
-                    onNavigateToAttendance = { safeNavigate(AppScreen.Attendance) },
-                    onNavigateToFees = { safeNavigate(AppScreen.Fees) },
-                    onNavigateToProfile = { navController.navigate(AppScreen.Profile.route) }
+                val feeViewModel: FeeViewModel = viewModel()
+                FeeScreen(
+                    viewModel = feeViewModel,
+                    onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
+                )
+            }
+
+            // Examinations & Timetable Route (Phase 13 Examination Scheduling & Timetable System)
+            composable(AppScreen.Exams.route) {
+                BackHandler { safeNavigate(AppScreen.MainDashboard) }
+                val examViewModel: ExamViewModel = viewModel()
+                ExamScreen(
+                    viewModel = examViewModel,
+                    onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
                 )
             }
 

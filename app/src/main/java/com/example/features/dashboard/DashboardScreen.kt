@@ -21,9 +21,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.MeetingRoom
@@ -74,6 +76,9 @@ fun DashboardScreen(
     onNavigateToClasses: () -> Unit = {},
     onNavigateToAttendance: () -> Unit,
     onNavigateToFees: () -> Unit,
+    onNavigateToExams: () -> Unit = {},
+    onNavigateToResults: () -> Unit = {},
+    onNavigateToNotices: () -> Unit = {},
     onNavigateToProfile: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -250,6 +255,14 @@ fun DashboardScreen(
                             icon = Icons.Default.AttachMoney,
                             onClick = onNavigateToFees,
                             testTag = "action_collect_fee"
+                        )
+                    }
+                    if (viewModel.hasPermission(Permission.EXAMS_VIEW)) {
+                        QuickActionButton(
+                            label = "Exam Schedule",
+                            icon = Icons.Default.DateRange,
+                            onClick = onNavigateToExams,
+                            testTag = "action_exam_schedule"
                         )
                     }
                     if (viewModel.hasPermission(Permission.HOMEWORK_CREATE)) {
