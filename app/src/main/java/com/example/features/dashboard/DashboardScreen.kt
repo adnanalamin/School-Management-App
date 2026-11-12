@@ -265,19 +265,19 @@ fun DashboardScreen(
                             testTag = "action_exam_schedule"
                         )
                     }
-                    if (viewModel.hasPermission(Permission.HOMEWORK_CREATE)) {
+                    if (viewModel.hasPermission(Permission.RESULTS_VIEW)) {
                         QuickActionButton(
-                            label = "Assign Homework",
-                            icon = Icons.Default.Assignment,
-                            onClick = { viewModel.triggerQuickAction("New Assignment") },
-                            testTag = "action_new_homework"
+                            label = "Gradebook",
+                            icon = Icons.Default.Assessment,
+                            onClick = onNavigateToResults,
+                            testTag = "action_gradebook"
                         )
                     }
-                    if (viewModel.hasPermission(Permission.NOTICES_PUBLISH)) {
+                    if (viewModel.hasPermission(Permission.NOTICES_VIEW)) {
                         QuickActionButton(
-                            label = "Post Notice",
+                            label = "Noticeboard",
                             icon = Icons.Default.Notifications,
-                            onClick = { viewModel.triggerQuickAction("Publish Notice") },
+                            onClick = onNavigateToNotices,
                             testTag = "action_post_notice"
                         )
                     }

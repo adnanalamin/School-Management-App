@@ -280,6 +280,60 @@
       },
       "required": ["id", "schoolId", "title", "examType", "gradeLevel", "startDate", "endDate", "status"]
     },
+    "StudentResult": {
+      "title": "StudentResult",
+      "description": "Student academic evaluation transcript and GPA grading report",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "examId": { "type": "string" },
+        "examTitle": { "type": "string" },
+        "academicSession": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "rollNumber": { "type": "string" },
+        "gradeLevel": { "type": "string" },
+        "section": { "type": "string" },
+        "subjectScores": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "totalMarksObtained": { "type": "number" },
+        "totalMaxMarks": { "type": "number" },
+        "percentage": { "type": "number" },
+        "overallGrade": { "type": "string" },
+        "gpa": { "type": "number" },
+        "classRank": { "type": "integer" },
+        "status": { "type": "string" },
+        "remarks": { "type": "string" },
+        "publishedAt": { "type": "integer" }
+      },
+      "required": ["id", "schoolId", "examId", "studentId", "studentName", "gradeLevel", "overallGrade", "gpa", "status"]
+    },
+    "SchoolNotice": {
+      "title": "SchoolNotice",
+      "description": "Circular announcements and targeted broadcast notices",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string" },
+        "priority": { "type": "string" },
+        "targetAudience": { "type": "string" },
+        "targetGrade": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorRole": { "type": "string" },
+        "isPinned": { "type": "boolean" },
+        "attachmentCount": { "type": "integer" },
+        "createdAt": { "type": "integer" },
+        "expiresAt": { "type": "integer" }
+      },
+      "required": ["id", "schoolId", "title", "content", "category", "priority", "targetAudience", "authorName"]
+    },
     "TenantEntity": {
       "title": "TenantEntity",
       "description": "General representation of a tenant-scoped record in any of the 15 isolated subcollections",
@@ -338,11 +392,11 @@
       "description": "Subcollection 8: Exam terms and timetables"
     },
     "/schools/{schoolId}/results/{resultId}": {
-      "schema": "TenantEntity",
+      "schema": "StudentResult",
       "description": "Subcollection 9: Academic grade sheets and results"
     },
     "/schools/{schoolId}/notices/{noticeId}": {
-      "schema": "TenantEntity",
+      "schema": "SchoolNotice",
       "description": "Subcollection 10: Circulars, announcements & broadcast notices"
     },
     "/schools/{schoolId}/homework/{homeworkId}": {

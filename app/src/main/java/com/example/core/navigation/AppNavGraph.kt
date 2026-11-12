@@ -241,6 +241,8 @@ fun AppNavGraph(
                     onNavigateToAttendance = { safeNavigate(AppScreen.Attendance) },
                     onNavigateToFees = { safeNavigate(AppScreen.Fees) },
                     onNavigateToExams = { safeNavigate(AppScreen.Exams) },
+                    onNavigateToResults = { safeNavigate(AppScreen.Results) },
+                    onNavigateToNotices = { safeNavigate(AppScreen.Notices) },
                     onNavigateToProfile = { navController.navigate(AppScreen.Profile.route) }
                 )
             }
@@ -301,6 +303,26 @@ fun AppNavGraph(
                 val examViewModel: ExamViewModel = viewModel()
                 ExamScreen(
                     viewModel = examViewModel,
+                    onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
+                )
+            }
+
+            // Gradebook & Results Route (Phase 14 Academic Results & GPA Grading Engine)
+            composable(AppScreen.Results.route) {
+                BackHandler { safeNavigate(AppScreen.MainDashboard) }
+                val resultViewModel: ResultViewModel = viewModel()
+                ResultScreen(
+                    viewModel = resultViewModel,
+                    onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
+                )
+            }
+
+            // School Circulars & Noticeboard Broadcast System (Phase 15 Noticeboard System)
+            composable(AppScreen.Notices.route) {
+                BackHandler { safeNavigate(AppScreen.MainDashboard) }
+                val noticeViewModel: NoticeViewModel = viewModel()
+                NoticeScreen(
+                    viewModel = noticeViewModel,
                     onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
                 )
             }

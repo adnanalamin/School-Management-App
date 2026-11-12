@@ -1595,6 +1595,256 @@ class ExampleUnitTest {
         assertEquals(1, ticket.papers.size)
         assertEquals("Introductory Biology", ticket.papers.first().subjectName)
     }
+
+    @Test
+    fun verifyStudentResultAndSubjectScoreFirestoreSerializationAndGradeCalculation() {
+        val scores = listOf(
+            com.example.features.results.domain.SubjectScore(
+                subjectCode = "PHY-101",
+                subjectName = "Physics",
+                marksObtained = 92.0,
+                totalMarks = 100.0
+            ),
+            com.example.features.results.domain.SubjectScore(
+                subjectCode = "MAT-101",
+                subjectName = "Calculus",
+                marksObtained = 85.0,
+                totalMarks = 100.0
+            )
+        )
+
+        assertEquals("A+", scores[0].grade)
+        assertEquals(4.0, scores[0].gradePoint, 0.001)
+        assertEquals("A", scores[1].grade)
+        assertEquals(3.7, scores[1].gradePoint, 0.001)
+
+        val result = com.example.features.results.domain.StudentResult(
+            id = "res_test_01",
+            schoolId = "sch_oxford_01",
+            examId = "ex_mid_10",
+            examTitle = "Midterm Series 2026",
+            academicSession = "2026-2027",
+            studentId = "stu_01",
+            studentName = "Amina Rahman",
+            rollNumber = "OXF-10A-001",
+            gradeLevel = "Grade 10",
+            section = "Section A",
+            subjectScores = scores,
+            rankInClass = 1
+        )
+
+        assertEquals(177.0, result.totalObtained, 0.001)
+        assertEquals(200.0, result.totalMaxMarks, 0.001)
+        assertEquals(88.5, result.percentage, 0.001)
+        assertEquals(3.85, result.gpa, 0.001)
+        assertEquals("A", result.overallGrade)
+
+        val map = result.toFirestoreMap()
+        assertEquals("res_test_01", map["id"])
+        assertEquals("sch_oxford_01", map["schoolId"])
+        assertEquals("Amina Rahman", map["studentName"])
+        assertEquals(88.5, map["percentage"])
+
+        val deserialized = com.example.features.results.domain.StudentResult.fromFirestoreMap(
+            result.id,
+            result.schoolId,
+            map
+        )
+        assertEquals(result.id, deserialized.id)
+        assertEquals(result.studentName, deserialized.studentName)
+        assertEquals(result.overallGrade, deserialized.overallGrade)
+        assertEquals(2, deserialized.subjectScores.size)
+    }
+
+    @Test
+    fun verifyResultRepositoryPreSeededDataAndReportCardGeneration() {
+        val repo = com.example.features.results.data.ResultRepository()
+
+        val oxfordResults = repo.getPreSeededResults("sch_oxford_01")
+        assertEquals(3, oxfordResults.size)
+        assertTrue(oxfordResults.all { it.schoolId == "sch_oxford_01" })
+
+        val cambridgeResults = repo.getPreSeededResults("sch_cambridge_101")
+        assertEquals(1, cambridgeResults.size)
+        assertTrue(cambridgeResults.all { it.schoolId == "sch_cambridge_101" })
+
+        val firstStudent = oxfordResults.first()
+        val reportCard = repo.generateReportCard("sch_oxford_01", firstStudent, attendanceRate = 98.0)
+        assertNotNull(reportCard)
+        assertEquals("Oxford Academy", reportCard.schoolName)
+        assertEquals("OXF-2026", reportCard.schoolCode)
+        assertEquals(firstStudent.studentName, reportCard.studentResult.studentName)
+        assertEquals(98.0, reportCard.attendancePercentage, 0.001)
+        assertTrue(reportCard.honorsRemark.isNotEmpty())
+    }
+
+    @Test
+    fun verifyResultViewModelMetricsFilteringAndScoreEntry() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.results.presentation.ResultViewModel()
+
+        assertEquals(3, vm.uiState.value.results.size)
+        assertEquals(3, vm.uiState.value.filteredResults.size)
+        assertTrue(vm.uiState.value.classAveragePercentage > 0.0)
+        assertTrue(vm.uiState.value.highestPercentage > 0.0)
+        assertEquals(100.0, vm.uiState.value.passRatePercentage, 0.001)
+
+        // Search filtering
+        vm.setSearchQuery("Rahman")
+        assertEquals(1, vm.uiState.value.filteredResults.size)
+        assertEquals("Amina Rahman", vm.uiState.value.filteredResults.first().studentName)
+
+        vm.clearFilters()
+        assertEquals(3, vm.uiState.value.filteredResults.size)
+
+        // Status filtering
+        vm.setStatusFilter(com.example.features.results.domain.ResultStatus.PUBLISHED)
+        assertEquals(3, vm.uiState.value.filteredResults.size)
+
+        // Report Card generation dialog
+        val target = vm.uiState.value.results.first()
+        vm.openReportCard(target)
+        assertTrue(vm.uiState.value.showReportCardDialog)
+        assertNotNull(vm.uiState.value.generatedReportCard)
+        assertEquals(target.studentName, vm.uiState.value.generatedReportCard!!.studentResult.studentName)
+        vm.closeReportCardDialog()
+        assertFalse(vm.uiState.value.showReportCardDialog)
+
+        // Score entry
+        val initialCount = vm.uiState.value.results.size
+        vm.addStudentResult(
+            studentName = "Charlotte Bronte",
+            rollNumber = "OXF-10A-008",
+            gradeLevel = "Grade 10",
+            section = "Section A",
+            examTitle = "Midterm Examination Series 2026",
+            academicSession = "2026-2027",
+            scores = listOf(
+                com.example.features.results.domain.SubjectScore("LIT-101", "English Literature", 95.0, 100.0),
+                com.example.features.results.domain.SubjectScore("HIS-101", "World History", 91.0, 100.0)
+            ),
+            teacherRemarks = "Outstanding literary analysis."
+        )
+        assertEquals(initialCount + 1, vm.uiState.value.results.size)
+        val created = vm.uiState.value.results.first { it.studentName == "Charlotte Bronte" }
+        assertEquals("Charlotte Bronte", created.studentName)
+        assertEquals(93.0, created.percentage, 0.001)
+        assertEquals("A+", created.overallGrade)
+    }
+
+    @Test
+    fun verifySchoolNoticeFirestoreSerializationAndEnumMapping() {
+        val notice = com.example.features.notices.domain.SchoolNotice(
+            id = "not_test_01",
+            schoolId = "sch_oxford_01",
+            title = "Annual Sports Meet Schedule",
+            content = "The annual track and field competitions will commence on Saturday.",
+            category = com.example.features.notices.domain.NoticeCategory.EVENT,
+            priority = com.example.features.notices.domain.NoticePriority.URGENT,
+            targetAudience = com.example.features.notices.domain.NoticeTargetAudience.ALL,
+            authorId = "usr_admin_01",
+            authorName = "Sports Directorate",
+            isPinned = true,
+            publishedDate = "2026-03-25",
+            attachmentTitle = "Sports_Schedule.pdf"
+        )
+
+        val map = notice.toFirestoreMap()
+        assertEquals("not_test_01", map["id"])
+        assertEquals("sch_oxford_01", map["schoolId"])
+        assertEquals("EVENT", map["category"])
+        assertEquals("URGENT", map["priority"])
+        assertEquals("ALL", map["targetAudience"])
+        assertEquals(true, map["isPinned"])
+
+        val deserialized = com.example.features.notices.domain.SchoolNotice.fromFirestoreMap(
+            notice.id,
+            notice.schoolId,
+            map
+        )
+        assertEquals(notice.id, deserialized.id)
+        assertEquals(notice.title, deserialized.title)
+        assertEquals(notice.category, deserialized.category)
+        assertEquals(notice.priority, deserialized.priority)
+        assertEquals(notice.targetAudience, deserialized.targetAudience)
+        assertEquals(notice.isPinned, deserialized.isPinned)
+        assertEquals(notice.attachmentTitle, deserialized.attachmentTitle)
+    }
+
+    @Test
+    fun verifyNoticeRepositoryPreSeededNoticesAndTenantIsolation() {
+        val repo = com.example.features.notices.data.NoticeRepository()
+
+        val oxfordNotices = repo.getPreSeededNotices("sch_oxford_01")
+        assertEquals(3, oxfordNotices.size)
+        assertTrue(oxfordNotices.all { it.schoolId == "sch_oxford_01" })
+
+        val cambridgeNotices = repo.getPreSeededNotices("sch_cambridge_101")
+        assertEquals(1, cambridgeNotices.size)
+        assertTrue(cambridgeNotices.all { it.schoolId == "sch_cambridge_101" })
+
+        // Category filter
+        val examNotices = oxfordNotices.filter { it.category == com.example.features.notices.domain.NoticeCategory.EXAMINATION }
+        assertEquals(1, examNotices.size)
+        assertEquals("Midterm Examination Series Instructions & Timetable Release", examNotices.first().title)
+    }
+
+    @Test
+    fun verifyNoticeViewModelSearchFilteringPinningAndPublishing() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.notices.presentation.NoticeViewModel()
+
+        assertEquals(3, vm.uiState.value.notices.size)
+        assertEquals(3, vm.uiState.value.filteredNotices.size)
+        assertEquals(1, vm.uiState.value.urgentNoticesCount)
+        assertEquals(2, vm.uiState.value.pinnedNoticesCount)
+
+        // Search query
+        vm.setSearchQuery("Robotics")
+        assertEquals(1, vm.uiState.value.filteredNotices.size)
+        assertEquals("Annual Science Exhibition & Robotics Fair 2026", vm.uiState.value.filteredNotices.first().title)
+
+        vm.clearFilters()
+        assertEquals(3, vm.uiState.value.filteredNotices.size)
+
+        // Category filter
+        vm.setCategoryFilter(com.example.features.notices.domain.NoticeCategory.ACADEMIC)
+        assertEquals(1, vm.uiState.value.filteredNotices.size)
+        assertEquals(com.example.features.notices.domain.NoticeCategory.ACADEMIC, vm.uiState.value.filteredNotices.first().category)
+
+        vm.clearFilters()
+
+        // Toggle pin
+        val firstNotice = vm.uiState.value.notices.first { !it.isPinned }
+        val idToPin = firstNotice.id
+        vm.togglePinNotice(idToPin)
+        val pinned = vm.uiState.value.notices.first { it.id == idToPin }
+        assertTrue(pinned.isPinned)
+
+        // Publish new notice
+        val initialCount = vm.uiState.value.notices.size
+        vm.createNotice(
+            title = "Spring Equinox Recess Notice",
+            content = "The school campus will remain closed on Friday for the Vernal Equinox observance. Regular classes resume Monday.",
+            category = com.example.features.notices.domain.NoticeCategory.HOLIDAY,
+            priority = com.example.features.notices.domain.NoticePriority.IMPORTANT,
+            targetAudience = com.example.features.notices.domain.NoticeTargetAudience.ALL,
+            isPinned = false,
+            attachmentTitle = "Recess_Notice.pdf"
+        )
+
+        assertEquals(initialCount + 1, vm.uiState.value.notices.size)
+        val created = vm.uiState.value.notices.first { it.title == "Spring Equinox Recess Notice" }
+        assertEquals(com.example.features.notices.domain.NoticeCategory.HOLIDAY, created.category)
+        assertEquals(com.example.features.notices.domain.NoticePriority.IMPORTANT, created.priority)
+
+        // Detail dialog
+        vm.openNoticeDetail(created)
+        assertTrue(vm.uiState.value.showNoticeDetailDialog)
+        assertEquals(created.id, vm.uiState.value.selectedNoticeForDetail?.id)
+        vm.closeNoticeDetailDialog()
+        assertFalse(vm.uiState.value.showNoticeDetailDialog)
+    }
 }
 
 
