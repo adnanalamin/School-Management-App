@@ -1845,6 +1845,178 @@ class ExampleUnitTest {
         vm.closeNoticeDetailDialog()
         assertFalse(vm.uiState.value.showNoticeDetailDialog)
     }
+
+    @Test
+    fun verifyHomeworkAssignmentAndSubmissionSerializationAndMetrics() {
+        val submission = com.example.features.homework.domain.HomeworkSubmission(
+            studentId = "stu_01",
+            studentName = "Amina Rahman",
+            rollNumber = "OXF-10A-001",
+            submissionDate = "2026-03-24",
+            attachmentTitle = "Amina_Lab_Report.pdf",
+            studentNotes = "Included regression analysis in appendix.",
+            status = com.example.features.homework.domain.SubmissionStatus.GRADED,
+            marksAwarded = 48.0,
+            feedback = "Superb lab write-up",
+            evaluatedBy = "Dr. Sarah Jenkins",
+            evaluatedAt = 1711280000000L
+        )
+
+        val subMap = submission.toFirestoreMap()
+        assertEquals("stu_01", subMap["studentId"])
+        assertEquals("Amina Rahman", subMap["studentName"])
+        assertEquals("GRADED", subMap["status"])
+        assertEquals(48.0, subMap["marksAwarded"])
+
+        val deserializedSub = com.example.features.homework.domain.HomeworkSubmission.fromFirestoreMap(subMap)
+        assertEquals(submission.studentId, deserializedSub.studentId)
+        assertEquals(submission.studentName, deserializedSub.studentName)
+        assertEquals(submission.status, deserializedSub.status)
+        assertEquals(submission.marksAwarded, deserializedSub.marksAwarded)
+
+        val assignment = com.example.features.homework.domain.HomeworkAssignment(
+            id = "hw_test_01",
+            schoolId = "sch_oxford_01",
+            title = "Optics & Lens Refraction",
+            description = "Calculate focal length with convex and concave lenses.",
+            subjectCode = "PHY-101",
+            subjectName = "Advanced Physics",
+            gradeLevel = "Grade 10",
+            section = "Section A",
+            assignedDate = "2026-03-24",
+            dueDate = "2026-03-31",
+            totalMarks = 50.0,
+            teacherId = "tea_01",
+            teacherName = "Dr. Sarah Jenkins",
+            status = com.example.features.homework.domain.HomeworkStatus.ASSIGNED,
+            attachmentTitle = "Optics_Lab_Guide.pdf",
+            submissions = listOf(submission),
+            totalEnrolledStudents = 32
+        )
+
+        assertEquals(1, assignment.submissionCount)
+        assertEquals(1, assignment.gradedCount)
+        assertEquals(0, assignment.pendingReviewCount)
+        assertEquals(3.125, assignment.submissionRatePercentage, 0.001)
+        assertEquals(48.0, assignment.averageScore, 0.001)
+
+        val assignMap = assignment.toFirestoreMap()
+        assertEquals("hw_test_01", assignMap["id"])
+        assertEquals("sch_oxford_01", assignMap["schoolId"])
+        assertEquals("Optics & Lens Refraction", assignMap["title"])
+        assertEquals(50.0, assignMap["totalMarks"])
+        assertEquals("ASSIGNED", assignMap["status"])
+
+        val deserializedAssign = com.example.features.homework.domain.HomeworkAssignment.fromFirestoreMap(
+            assignment.id,
+            assignment.schoolId,
+            assignMap
+        )
+        assertEquals(assignment.id, deserializedAssign.id)
+        assertEquals(assignment.title, deserializedAssign.title)
+        assertEquals(assignment.subjectName, deserializedAssign.subjectName)
+        assertEquals(1, deserializedAssign.submissions.size)
+        assertEquals("Amina Rahman", deserializedAssign.submissions.first().studentName)
+    }
+
+    @Test
+    fun verifyHomeworkRepositoryPreSeededAssignmentsAndTenantIsolation() {
+        val repo = com.example.features.homework.data.HomeworkRepository()
+
+        val oxfordHomework = repo.getPreSeededHomework("sch_oxford_01")
+        assertEquals(3, oxfordHomework.size)
+        assertTrue(oxfordHomework.all { it.schoolId == "sch_oxford_01" })
+
+        val cambridgeHomework = repo.getPreSeededHomework("sch_cambridge_101")
+        assertEquals(1, cambridgeHomework.size)
+        assertTrue(cambridgeHomework.all { it.schoolId == "sch_cambridge_101" })
+
+        // Subject filter
+        val physics = oxfordHomework.filter { it.subjectCode == "PHY-101" }
+        assertEquals(1, physics.size)
+        assertEquals("Lab Report: Simple Harmonic Motion & Pendulum Dynamics", physics.first().title)
+    }
+
+    @Test
+    fun verifyHomeworkViewModelSearchFilteringAssignmentCreationAndGradingFlow() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.homework.presentation.HomeworkViewModel()
+
+        assertEquals(3, vm.uiState.value.assignments.size)
+        assertEquals(3, vm.uiState.value.filteredAssignments.size)
+        assertEquals(2, vm.uiState.value.activeAssignmentsCount)
+        assertEquals(5, vm.uiState.value.totalSubmissionsCount)
+
+        // Search filtering
+        vm.setSearchQuery("Pendulum")
+        assertEquals(1, vm.uiState.value.filteredAssignments.size)
+        assertEquals("hw_oxf_phy_01", vm.uiState.value.filteredAssignments.first().id)
+
+        vm.clearFilters()
+        assertEquals(3, vm.uiState.value.filteredAssignments.size)
+
+        // Status filtering
+        vm.setStatusFilter(com.example.features.homework.domain.HomeworkStatus.CLOSED)
+        assertEquals(1, vm.uiState.value.filteredAssignments.size)
+        assertEquals("hw_oxf_eng_03", vm.uiState.value.filteredAssignments.first().id)
+
+        vm.clearFilters()
+
+        // Create new assignment
+        val initialCount = vm.uiState.value.assignments.size
+        vm.createAssignment(
+            title = "Chemistry Organic Synthesis Mechanisms",
+            description = "Draw full electron arrow pushing mechanisms for aldol condensation and electrophilic aromatic substitution.",
+            subjectCode = "CHM-104",
+            subjectName = "Organic Chemistry",
+            gradeLevel = "Grade 10",
+            section = "Section A",
+            dueDate = "2026-04-10",
+            totalMarks = 60.0,
+            attachmentTitle = "Reaction_Mechanisms_Worksheet.pdf"
+        )
+
+        assertEquals(initialCount + 1, vm.uiState.value.assignments.size)
+        val created = vm.uiState.value.assignments.first { it.title == "Chemistry Organic Synthesis Mechanisms" }
+        assertEquals("CHM-104", created.subjectCode)
+        assertEquals(60.0, created.totalMarks, 0.001)
+
+        // Submit student work
+        vm.submitStudentWork(
+            assignmentId = created.id,
+            studentName = "Isaac Newton",
+            rollNumber = "OXF-10A-010",
+            attachmentTitle = "Newton_Chemistry_Mechanisms.pdf",
+            studentNotes = "Included all resonance structures for carbocation intermediate."
+        )
+
+        val updatedAssignment = vm.uiState.value.assignments.first { it.id == created.id }
+        assertEquals(1, updatedAssignment.submissions.size)
+        val submittedWork = updatedAssignment.submissions.first()
+        assertEquals("Isaac Newton", submittedWork.studentName)
+        assertEquals(com.example.features.homework.domain.SubmissionStatus.SUBMITTED, submittedWork.status)
+
+        // Grade submission
+        vm.gradeStudentSubmission(
+            assignmentId = created.id,
+            studentId = submittedWork.studentId,
+            marksAwarded = 58.0,
+            feedback = "Flawless stereochemical control and arrow push accuracy."
+        )
+
+        val gradedAssignment = vm.uiState.value.assignments.first { it.id == created.id }
+        val evaluatedWork = gradedAssignment.submissions.first()
+        assertEquals(com.example.features.homework.domain.SubmissionStatus.GRADED, evaluatedWork.status)
+        assertEquals(58.0, evaluatedWork.marksAwarded!!, 0.001)
+        assertEquals("Flawless stereochemical control and arrow push accuracy.", evaluatedWork.feedback)
+
+        // Detail dialog
+        vm.openAssignmentDetail(gradedAssignment)
+        assertTrue(vm.uiState.value.showDetailDialog)
+        assertEquals(gradedAssignment.id, vm.uiState.value.selectedAssignmentForAction?.id)
+        vm.closeAssignmentDetail()
+        assertFalse(vm.uiState.value.showDetailDialog)
+    }
 }
 
 

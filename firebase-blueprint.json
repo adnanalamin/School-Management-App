@@ -334,6 +334,35 @@
       },
       "required": ["id", "schoolId", "title", "content", "category", "priority", "targetAudience", "authorName"]
     },
+    "HomeworkAssignment": {
+      "title": "HomeworkAssignment",
+      "description": "Daily homework and coursework assignment posting with student submissions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "subjectCode": { "type": "string" },
+        "subjectName": { "type": "string" },
+        "gradeLevel": { "type": "string" },
+        "section": { "type": "string" },
+        "assignedDate": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "totalMarks": { "type": "number" },
+        "teacherId": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "status": { "type": "string" },
+        "attachmentTitle": { "type": "string" },
+        "submissions": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "totalEnrolledStudents": { "type": "integer" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["id", "schoolId", "title", "subjectName", "gradeLevel", "dueDate", "totalMarks", "status"]
+    },
     "TenantEntity": {
       "title": "TenantEntity",
       "description": "General representation of a tenant-scoped record in any of the 15 isolated subcollections",
@@ -400,7 +429,7 @@
       "description": "Subcollection 10: Circulars, announcements & broadcast notices"
     },
     "/schools/{schoolId}/homework/{homeworkId}": {
-      "schema": "TenantEntity",
+      "schema": "HomeworkAssignment",
       "description": "Subcollection 11: Daily homework and assignment postings"
     },
     "/schools/{schoolId}/library/{bookId}": {

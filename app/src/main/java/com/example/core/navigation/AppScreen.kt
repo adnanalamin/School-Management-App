@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.Notifications
@@ -114,6 +115,13 @@ sealed class AppScreen(
         requiredPermission = Permission.NOTICES_VIEW
     )
 
+    data object Homework : AppScreen(
+        route = "homework",
+        title = "Homework & Coursework",
+        icon = Icons.Default.Assignment,
+        requiredPermission = Permission.HOMEWORK_VIEW
+    )
+
     data object Profile : AppScreen(
         route = "profile",
         title = "Profile",
@@ -166,6 +174,7 @@ sealed class AppScreen(
                 Exams.route -> Exams
                 Results.route -> Results
                 Notices.route -> Notices
+                Homework.route -> Homework
                 Profile.route -> Profile
                 Settings.route -> Settings
                 DesignSystem.route -> DesignSystem

@@ -79,6 +79,7 @@ fun DashboardScreen(
     onNavigateToExams: () -> Unit = {},
     onNavigateToResults: () -> Unit = {},
     onNavigateToNotices: () -> Unit = {},
+    onNavigateToHomework: () -> Unit = {},
     onNavigateToProfile: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -279,6 +280,14 @@ fun DashboardScreen(
                             icon = Icons.Default.Notifications,
                             onClick = onNavigateToNotices,
                             testTag = "action_post_notice"
+                        )
+                    }
+                    if (viewModel.hasPermission(Permission.HOMEWORK_VIEW)) {
+                        QuickActionButton(
+                            label = "Homework",
+                            icon = Icons.Default.Assignment,
+                            onClick = onNavigateToHomework,
+                            testTag = "action_new_homework"
                         )
                     }
                 }

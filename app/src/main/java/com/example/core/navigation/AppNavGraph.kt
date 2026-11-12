@@ -67,6 +67,8 @@ import com.example.features.results.presentation.ResultScreen
 import com.example.features.results.presentation.ResultViewModel
 import com.example.features.notices.presentation.NoticeScreen
 import com.example.features.notices.presentation.NoticeViewModel
+import com.example.features.homework.presentation.HomeworkScreen
+import com.example.features.homework.presentation.HomeworkViewModel
 import com.example.features.splash.SplashScreen
 import com.example.features.splash.SplashViewModel
 import com.example.shared.components.EduBottomNavBar
@@ -97,6 +99,7 @@ fun AppNavGraph(
         AppScreen.Exams.route,
         AppScreen.Results.route,
         AppScreen.Notices.route,
+        AppScreen.Homework.route,
         AppScreen.Settings.route
     )
 
@@ -243,6 +246,7 @@ fun AppNavGraph(
                     onNavigateToExams = { safeNavigate(AppScreen.Exams) },
                     onNavigateToResults = { safeNavigate(AppScreen.Results) },
                     onNavigateToNotices = { safeNavigate(AppScreen.Notices) },
+                    onNavigateToHomework = { safeNavigate(AppScreen.Homework) },
                     onNavigateToProfile = { navController.navigate(AppScreen.Profile.route) }
                 )
             }
@@ -323,6 +327,16 @@ fun AppNavGraph(
                 val noticeViewModel: NoticeViewModel = viewModel()
                 NoticeScreen(
                     viewModel = noticeViewModel,
+                    onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
+                )
+            }
+
+            // Homework & Coursework Pipeline (Phase 16 Homework & Assignments Pipeline)
+            composable(AppScreen.Homework.route) {
+                BackHandler { safeNavigate(AppScreen.MainDashboard) }
+                val homeworkViewModel: HomeworkViewModel = viewModel()
+                HomeworkScreen(
+                    viewModel = homeworkViewModel,
                     onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
                 )
             }
