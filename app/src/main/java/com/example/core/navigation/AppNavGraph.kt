@@ -69,6 +69,16 @@ import com.example.features.notices.presentation.NoticeScreen
 import com.example.features.notices.presentation.NoticeViewModel
 import com.example.features.homework.presentation.HomeworkScreen
 import com.example.features.homework.presentation.HomeworkViewModel
+import com.example.features.library.presentation.LibraryScreen
+import com.example.features.library.presentation.LibraryViewModel
+import com.example.features.transport.presentation.TransportScreen
+import com.example.features.transport.presentation.TransportViewModel
+import com.example.features.events.presentation.EventScreen
+import com.example.features.events.presentation.EventViewModel
+import com.example.features.documents.presentation.DocumentScreen
+import com.example.features.documents.presentation.DocumentViewModel
+import com.example.features.leave.presentation.LeaveScreen
+import com.example.features.leave.presentation.LeaveViewModel
 import com.example.features.splash.SplashScreen
 import com.example.features.splash.SplashViewModel
 import com.example.shared.components.EduBottomNavBar
@@ -100,6 +110,11 @@ fun AppNavGraph(
         AppScreen.Results.route,
         AppScreen.Notices.route,
         AppScreen.Homework.route,
+        AppScreen.Library.route,
+        AppScreen.Transport.route,
+        AppScreen.Events.route,
+        AppScreen.Documents.route,
+        AppScreen.Leaves.route,
         AppScreen.Settings.route
     )
 
@@ -247,6 +262,11 @@ fun AppNavGraph(
                     onNavigateToResults = { safeNavigate(AppScreen.Results) },
                     onNavigateToNotices = { safeNavigate(AppScreen.Notices) },
                     onNavigateToHomework = { safeNavigate(AppScreen.Homework) },
+                    onNavigateToLibrary = { safeNavigate(AppScreen.Library) },
+                    onNavigateToTransport = { safeNavigate(AppScreen.Transport) },
+                    onNavigateToEvents = { safeNavigate(AppScreen.Events) },
+                    onNavigateToDocuments = { safeNavigate(AppScreen.Documents) },
+                    onNavigateToLeaves = { safeNavigate(AppScreen.Leaves) },
                     onNavigateToProfile = { navController.navigate(AppScreen.Profile.route) }
                 )
             }
@@ -337,6 +357,56 @@ fun AppNavGraph(
                 val homeworkViewModel: HomeworkViewModel = viewModel()
                 HomeworkScreen(
                     viewModel = homeworkViewModel,
+                    onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
+                )
+            }
+
+            // Library Catalog & Lending Ledger (Phase 17 Library Book Inventory & Lending)
+            composable(AppScreen.Library.route) {
+                BackHandler { safeNavigate(AppScreen.MainDashboard) }
+                val libraryViewModel: LibraryViewModel = viewModel()
+                LibraryScreen(
+                    viewModel = libraryViewModel,
+                    onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
+                )
+            }
+
+            // School Transport & Route Fleet (Phase 18 School Transport & Route Fleet Management)
+            composable(AppScreen.Transport.route) {
+                BackHandler { safeNavigate(AppScreen.MainDashboard) }
+                val transportViewModel: TransportViewModel = viewModel()
+                TransportScreen(
+                    viewModel = transportViewModel,
+                    onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
+                )
+            }
+
+            // School Events & Academic Calendar (Phase 19 School Events & Academic Calendar)
+            composable(AppScreen.Events.route) {
+                BackHandler { safeNavigate(AppScreen.MainDashboard) }
+                val eventViewModel: EventViewModel = viewModel()
+                EventScreen(
+                    viewModel = eventViewModel,
+                    onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
+                )
+            }
+
+            // Institutional Documents, Syllabi & Credentials Vault (Phase 20)
+            composable(AppScreen.Documents.route) {
+                BackHandler { safeNavigate(AppScreen.MainDashboard) }
+                val documentViewModel: DocumentViewModel = viewModel()
+                DocumentScreen(
+                    viewModel = documentViewModel,
+                    onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
+                )
+            }
+
+            // Leave Request & Approval Workflow (Phase 21)
+            composable(AppScreen.Leaves.route) {
+                BackHandler { safeNavigate(AppScreen.MainDashboard) }
+                val leaveViewModel: LeaveViewModel = viewModel()
+                LeaveScreen(
+                    viewModel = leaveViewModel,
                     onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
                 )
             }

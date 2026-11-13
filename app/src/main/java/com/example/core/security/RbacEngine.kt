@@ -31,9 +31,11 @@ object RbacEngine {
      * Functional categories grouping all permissions for UX clarity and security audits.
      */
     val categories: Map<String, List<Permission>> = mapOf(
-        "Institution & System Settings" to listOf(
+        "Institution, Documents & System Settings" to listOf(
             Permission.SCHOOL_CONFIG_VIEW,
-            Permission.SCHOOL_CONFIG_EDIT
+            Permission.SCHOOL_CONFIG_EDIT,
+            Permission.DOCUMENTS_VIEW,
+            Permission.DOCUMENTS_MANAGE
         ),
         "Student Lifecycle & Enrollment" to listOf(
             Permission.STUDENTS_VIEW,
@@ -51,10 +53,12 @@ object RbacEngine {
             Permission.CLASSES_VIEW,
             Permission.CLASSES_MANAGE
         ),
-        "Attendance Management" to listOf(
+        "Attendance & Leave Management" to listOf(
             Permission.ATTENDANCE_VIEW,
             Permission.ATTENDANCE_MARK,
-            Permission.ATTENDANCE_EDIT
+            Permission.ATTENDANCE_EDIT,
+            Permission.LEAVES_APPLY,
+            Permission.LEAVES_APPROVE
         ),
         "Tuition & Financial Accounting" to listOf(
             Permission.FEES_VIEW,
@@ -75,9 +79,11 @@ object RbacEngine {
             Permission.HOMEWORK_SUBMIT,
             Permission.HOMEWORK_GRADE
         ),
-        "Notices & School Circulars" to listOf(
+        "Notices, Events & Academic Calendar" to listOf(
             Permission.NOTICES_VIEW,
-            Permission.NOTICES_PUBLISH
+            Permission.NOTICES_PUBLISH,
+            Permission.EVENTS_VIEW,
+            Permission.EVENTS_MANAGE
         ),
         "Library & Learning Resources" to listOf(
             Permission.LIBRARY_VIEW,

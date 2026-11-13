@@ -26,8 +26,13 @@ import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.DirectionsBus
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.EventNote
+import androidx.compose.material.icons.filled.FolderShared
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.LocalLibrary
 import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PersonAdd
@@ -80,6 +85,11 @@ fun DashboardScreen(
     onNavigateToResults: () -> Unit = {},
     onNavigateToNotices: () -> Unit = {},
     onNavigateToHomework: () -> Unit = {},
+    onNavigateToLibrary: () -> Unit = {},
+    onNavigateToTransport: () -> Unit = {},
+    onNavigateToEvents: () -> Unit = {},
+    onNavigateToDocuments: () -> Unit = {},
+    onNavigateToLeaves: () -> Unit = {},
     onNavigateToProfile: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -288,6 +298,46 @@ fun DashboardScreen(
                             icon = Icons.Default.Assignment,
                             onClick = onNavigateToHomework,
                             testTag = "action_new_homework"
+                        )
+                    }
+                    if (viewModel.hasPermission(Permission.LIBRARY_VIEW)) {
+                        QuickActionButton(
+                            label = "Library",
+                            icon = Icons.Default.LocalLibrary,
+                            onClick = onNavigateToLibrary,
+                            testTag = "action_library"
+                        )
+                    }
+                    if (viewModel.hasPermission(Permission.TRANSPORT_VIEW)) {
+                        QuickActionButton(
+                            label = "Transport",
+                            icon = Icons.Default.DirectionsBus,
+                            onClick = onNavigateToTransport,
+                            testTag = "action_transport"
+                        )
+                    }
+                    if (viewModel.hasPermission(Permission.EVENTS_VIEW)) {
+                        QuickActionButton(
+                            label = "Calendar",
+                            icon = Icons.Default.Event,
+                            onClick = onNavigateToEvents,
+                            testTag = "action_events"
+                        )
+                    }
+                    if (viewModel.hasPermission(Permission.DOCUMENTS_VIEW)) {
+                        QuickActionButton(
+                            label = "Documents",
+                            icon = Icons.Default.FolderShared,
+                            onClick = onNavigateToDocuments,
+                            testTag = "action_documents"
+                        )
+                    }
+                    if (viewModel.hasPermission(Permission.LEAVES_APPLY)) {
+                        QuickActionButton(
+                            label = "Leave Requests",
+                            icon = Icons.Default.EventBusy,
+                            onClick = onNavigateToLeaves,
+                            testTag = "action_leaves"
                         )
                     }
                 }

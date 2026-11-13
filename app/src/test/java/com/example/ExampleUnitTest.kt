@@ -1981,7 +1981,8 @@ class ExampleUnitTest {
         assertEquals("CHM-104", created.subjectCode)
         assertEquals(60.0, created.totalMarks, 0.001)
 
-        // Submit student work
+        // Submit student work (requires STUDENT role / HOMEWORK_SUBMIT permission)
+        TenantContext.setTenant("sch_oxford_01", UserRole.STUDENT, "stu_010")
         vm.submitStudentWork(
             assignmentId = created.id,
             studentName = "Isaac Newton",
@@ -1996,7 +1997,8 @@ class ExampleUnitTest {
         assertEquals("Isaac Newton", submittedWork.studentName)
         assertEquals(com.example.features.homework.domain.SubmissionStatus.SUBMITTED, submittedWork.status)
 
-        // Grade submission
+        // Grade submission (requires TEACHER or SCHOOL_ADMIN role / HOMEWORK_GRADE permission)
+        TenantContext.setTenant("sch_oxford_01", UserRole.TEACHER, "tea_01")
         vm.gradeStudentSubmission(
             assignmentId = created.id,
             studentId = submittedWork.studentId,
@@ -2017,10 +2019,952 @@ class ExampleUnitTest {
         vm.closeAssignmentDetail()
         assertFalse(vm.uiState.value.showDetailDialog)
     }
+
+    @Test
+    fun verifyLibraryBookAndLoanRecordFirestoreSerializationAndMetrics() {
+        val activeLoan = com.example.features.library.domain.BookLoanRecord(
+            loanId = "ln_test_01",
+            borrowerId = "stu_01",
+            borrowerName = "Amina Rahman",
+            borrowerRole = "Student",
+            rollOrStaffId = "OXF-10A-001",
+            issueDate = "2026-03-10",
+            dueDate = "2026-03-24",
+            returnDate = "",
+            status = com.example.features.library.domain.LoanStatus.OVERDUE,
+            fineAmount = 3.50,
+            notes = "Two days overdue"
+        )
+
+        val loanMap = activeLoan.toFirestoreMap()
+        assertEquals("ln_test_01", loanMap["loanId"])
+        assertEquals("Amina Rahman", loanMap["borrowerName"])
+        assertEquals("OVERDUE", loanMap["status"])
+        assertEquals(3.50, loanMap["fineAmount"])
+
+        val deserializedLoan = com.example.features.library.domain.BookLoanRecord.fromFirestoreMap(loanMap)
+        assertEquals(activeLoan.loanId, deserializedLoan.loanId)
+        assertEquals(activeLoan.borrowerName, deserializedLoan.borrowerName)
+        assertEquals(activeLoan.status, deserializedLoan.status)
+        assertEquals(activeLoan.fineAmount, deserializedLoan.fineAmount, 0.001)
+
+        val book = com.example.features.library.domain.LibraryBook(
+            id = "lib_test_01",
+            schoolId = "sch_oxford_01",
+            isbn = "978-0-13-468599-1",
+            title = "Effective Kotlin",
+            author = "Marcin Moskala",
+            publisher = "Leanpub",
+            category = com.example.features.library.domain.BookCategory.COMPUTER_SCIENCE,
+            shelfLocation = "Wing C • Rack CS-01",
+            totalCopies = 10,
+            availableCopies = 7,
+            publicationYear = 2023,
+            description = "Best practices for Kotlin engineering.",
+            loans = listOf(activeLoan)
+        )
+
+        assertEquals(3, book.issuedCopiesCount)
+        assertEquals(1, book.activeLoansCount)
+        assertEquals(1, book.overdueLoansCount)
+        assertTrue(book.isAvailable)
+
+        val bookMap = book.toFirestoreMap()
+        assertEquals("lib_test_01", bookMap["id"])
+        assertEquals("sch_oxford_01", bookMap["schoolId"])
+        assertEquals("COMPUTER_SCIENCE", bookMap["category"])
+        assertEquals(10, bookMap["totalCopies"])
+        assertEquals(7, bookMap["availableCopies"])
+
+        val deserializedBook = com.example.features.library.domain.LibraryBook.fromFirestoreMap(
+            book.id,
+            book.schoolId,
+            bookMap
+        )
+        assertEquals(book.id, deserializedBook.id)
+        assertEquals(book.title, deserializedBook.title)
+        assertEquals(book.category, deserializedBook.category)
+        assertEquals(1, deserializedBook.loans.size)
+        assertEquals("Amina Rahman", deserializedBook.loans.first().borrowerName)
+    }
+
+    @Test
+    fun verifyLibraryRepositoryPreSeededBooksAndTenantIsolation() {
+        val repo = com.example.features.library.data.LibraryRepository()
+
+        val oxfordBooks = repo.getPreSeededBooks("sch_oxford_01")
+        assertEquals(4, oxfordBooks.size)
+        assertTrue(oxfordBooks.all { it.schoolId == "sch_oxford_01" })
+
+        val cambridgeBooks = repo.getPreSeededBooks("sch_cambridge_101")
+        assertEquals(2, cambridgeBooks.size)
+        assertTrue(cambridgeBooks.all { it.schoolId == "sch_cambridge_101" })
+
+        val scienceBooks = oxfordBooks.filter { it.category == com.example.features.library.domain.BookCategory.SCIENCE }
+        assertEquals(1, scienceBooks.size)
+        assertEquals("University Physics with Modern Physics", scienceBooks.first().title)
+    }
+
+    @Test
+    fun verifyLibraryViewModelFilteringCatalogingIssueReturnAndRbac() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.LIBRARIAN, "lib_staff_01")
+        val vm = com.example.features.library.presentation.LibraryViewModel()
+
+        assertEquals(4, vm.uiState.value.totalTitlesCount)
+        assertEquals(41, vm.uiState.value.totalPhysicalCopies)
+        assertEquals(37, vm.uiState.value.availableCopiesCount)
+        assertEquals(4, vm.uiState.value.activeIssuedCount)
+        assertEquals(1, vm.uiState.value.overdueLoansCount)
+
+        // Search filtering
+        vm.setSearchQuery("Algorithms")
+        assertEquals(1, vm.uiState.value.filteredBooks.size)
+        assertEquals("lib_oxf_02", vm.uiState.value.filteredBooks.first().id)
+
+        vm.clearFilters()
+        assertEquals(4, vm.uiState.value.filteredBooks.size)
+
+        // Category filtering
+        vm.setCategoryFilter(com.example.features.library.domain.BookCategory.SCIENCE)
+        assertEquals(1, vm.uiState.value.filteredBooks.size)
+        assertEquals("lib_oxf_01", vm.uiState.value.filteredBooks.first().id)
+
+        vm.clearFilters()
+
+        // Catalog new book
+        vm.openAddBookDialog()
+        assertTrue(vm.uiState.value.showAddBookDialog)
+        vm.addBook(
+            isbn = "978-0-307-27767-1",
+            title = "Cosmos",
+            author = "Carl Sagan",
+            publisher = "Random House",
+            category = com.example.features.library.domain.BookCategory.SCIENCE,
+            shelfLocation = "Wing B • Rack S-15",
+            totalCopies = 2,
+            publicationYear = 2013,
+            description = "Classic exploration of astronomy and scientific thought."
+        )
+        assertFalse(vm.uiState.value.showAddBookDialog)
+        assertEquals(5, vm.uiState.value.totalTitlesCount)
+
+        val catalogedBook = vm.uiState.value.books.first { it.title == "Cosmos" }
+        assertEquals(2, catalogedBook.availableCopies)
+
+        // Issue a copy
+        vm.openIssueBookDialog(catalogedBook)
+        assertTrue(vm.uiState.value.showIssueBookDialog)
+        vm.issueBook(
+            bookId = catalogedBook.id,
+            borrowerName = "Isaac Newton",
+            rollOrStaffId = "OXF-10A-010",
+            borrowerRole = "Student",
+            dueDate = "2026-04-15",
+            notes = "Astrophysics reading assignment"
+        )
+        assertFalse(vm.uiState.value.showIssueBookDialog)
+
+        val afterIssue = vm.uiState.value.books.first { it.id == catalogedBook.id }
+        assertEquals(1, afterIssue.availableCopies)
+        assertEquals(1, afterIssue.loans.size)
+        val issuedLoan = afterIssue.loans.first()
+        assertEquals(com.example.features.library.domain.LoanStatus.ISSUED, issuedLoan.status)
+
+        // Availability filter
+        vm.toggleOnlyAvailableFilter()
+        assertTrue(vm.uiState.value.onlyAvailableFilter)
+        assertTrue(vm.uiState.value.filteredBooks.all { it.isAvailable })
+        vm.clearFilters()
+
+        // Return / Check in the copy
+        vm.openBookDetail(afterIssue)
+        assertTrue(vm.uiState.value.showBookDetailDialog)
+        vm.returnBook(
+            bookId = afterIssue.id,
+            loanId = issuedLoan.loanId,
+            fineAmount = 0.0
+        )
+
+        val afterReturn = vm.uiState.value.books.first { it.id == catalogedBook.id }
+        assertEquals(2, afterReturn.availableCopies)
+        assertEquals(com.example.features.library.domain.LoanStatus.RETURNED, afterReturn.loans.first().status)
+        vm.closeBookDetail()
+        assertFalse(vm.uiState.value.showBookDetailDialog)
+
+        // RBAC enforcement: Student cannot catalog or issue books
+        TenantContext.setTenant("sch_oxford_01", UserRole.STUDENT, "stu_010")
+        vm.dismissStatusMessage()
+        vm.openAddBookDialog()
+        assertFalse(vm.uiState.value.showAddBookDialog)
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+
+        vm.dismissStatusMessage()
+        vm.addBook(
+            isbn = "978-0-000-00000-0",
+            title = "Unauthorized Book",
+            author = "Nobody",
+            publisher = "None",
+            category = com.example.features.library.domain.BookCategory.FICTION,
+            shelfLocation = "A-1",
+            totalCopies = 1,
+            publicationYear = 2024,
+            description = ""
+        )
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+        assertEquals(5, vm.uiState.value.totalTitlesCount)
+    }
+
+    @Test
+    fun verifyTransportRouteStopsPassengersFirestoreSerializationAndMetrics() {
+        val stop = com.example.features.transport.domain.TransportStop(
+            stopId = "stp_test_01",
+            stopName = "Magdalen Bridge Stop",
+            pickupTime = "07:25 AM",
+            dropTime = "03:40 PM",
+            landmark = "High Street East",
+            monthlyFee = 85.0
+        )
+
+        val stopMap = stop.toFirestoreMap()
+        assertEquals("stp_test_01", stopMap["stopId"])
+        assertEquals("Magdalen Bridge Stop", stopMap["stopName"])
+        assertEquals(85.0, stopMap["monthlyFee"])
+
+        val deserializedStop = com.example.features.transport.domain.TransportStop.fromFirestoreMap(stopMap)
+        assertEquals(stop.stopId, deserializedStop.stopId)
+        assertEquals(stop.stopName, deserializedStop.stopName)
+        assertEquals(stop.monthlyFee, deserializedStop.monthlyFee, 0.001)
+
+        val passenger = com.example.features.transport.domain.TransportPassenger(
+            passengerId = "pax_test_01",
+            studentId = "stu_01",
+            studentName = "Amina Rahman",
+            rollNumber = "OXF-10A-001",
+            gradeLevel = "Grade 10 - A",
+            stopId = "stp_test_01",
+            stopName = "Magdalen Bridge Stop",
+            guardianContact = "+44 7700 900401",
+            isMorningPickup = true,
+            isAfternoonDrop = false
+        )
+
+        val paxMap = passenger.toFirestoreMap()
+        assertEquals("pax_test_01", paxMap["passengerId"])
+        assertEquals("Amina Rahman", paxMap["studentName"])
+        assertEquals(false, paxMap["isAfternoonDrop"])
+
+        val deserializedPax = com.example.features.transport.domain.TransportPassenger.fromFirestoreMap(paxMap)
+        assertEquals(passenger.passengerId, deserializedPax.passengerId)
+        assertEquals(passenger.rollNumber, deserializedPax.rollNumber)
+        assertFalse(deserializedPax.isAfternoonDrop)
+
+        val route = com.example.features.transport.domain.TransportRoute(
+            id = "rt_test_01",
+            schoolId = "sch_oxford_01",
+            routeCode = "RT-OXF-99",
+            routeName = "East Cowley Express",
+            vehicleNumber = "OXF-BUS-999",
+            vehicleType = com.example.features.transport.domain.VehicleType.ELECTRIC_COACH,
+            capacity = 20,
+            driverName = "Arthur Pendelton",
+            driverPhone = "+44 7700 900112",
+            attendantName = "Martha Evans",
+            status = com.example.features.transport.domain.RouteStatus.ACTIVE,
+            stops = listOf(stop),
+            passengers = listOf(passenger)
+        )
+
+        assertEquals(1, route.occupiedSeatsCount)
+        assertEquals(19, route.availableSeatsCount)
+        assertEquals(5.0, route.occupancyRatePercentage, 0.001)
+        assertTrue(route.hasAvailableSeat)
+
+        val routeMap = route.toFirestoreMap()
+        assertEquals("rt_test_01", routeMap["id"])
+        assertEquals("sch_oxford_01", routeMap["schoolId"])
+        assertEquals("ELECTRIC_COACH", routeMap["vehicleType"])
+        assertEquals("ACTIVE", routeMap["status"])
+        assertEquals(20, routeMap["capacity"])
+
+        val deserializedRoute = com.example.features.transport.domain.TransportRoute.fromFirestoreMap(
+            route.id,
+            route.schoolId,
+            routeMap
+        )
+        assertEquals(route.id, deserializedRoute.id)
+        assertEquals(route.routeCode, deserializedRoute.routeCode)
+        assertEquals(route.vehicleType, deserializedRoute.vehicleType)
+        assertEquals(1, deserializedRoute.stops.size)
+        assertEquals(1, deserializedRoute.passengers.size)
+        assertEquals("Amina Rahman", deserializedRoute.passengers.first().studentName)
+    }
+
+    @Test
+    fun verifyTransportRepositoryPreSeededRoutesAndTenantIsolation() {
+        val repo = com.example.features.transport.data.TransportRepository()
+
+        val oxfordRoutes = repo.getPreSeededRoutes("sch_oxford_01")
+        assertEquals(3, oxfordRoutes.size)
+        assertTrue(oxfordRoutes.all { it.schoolId == "sch_oxford_01" })
+
+        val cambridgeRoutes = repo.getPreSeededRoutes("sch_cambridge_101")
+        assertEquals(2, cambridgeRoutes.size)
+        assertTrue(cambridgeRoutes.all { it.schoolId == "sch_cambridge_101" })
+
+        val delayedRoutes = oxfordRoutes.filter { it.status == com.example.features.transport.domain.RouteStatus.DELAYED }
+        assertEquals(1, delayedRoutes.size)
+        assertEquals("South Abingdon Link", delayedRoutes.first().routeName)
+    }
+
+    @Test
+    fun verifyTransportViewModelFilteringFleetCreationBoardingStatusAndRbac() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.TRANSPORT_MANAGER, "trn_mgr_01")
+        val vm = com.example.features.transport.presentation.TransportViewModel()
+
+        assertEquals(3, vm.uiState.value.totalRoutesCount)
+        assertEquals(2, vm.uiState.value.activeRoutesCount)
+        assertEquals(94, vm.uiState.value.totalFleetCapacity)
+        assertEquals(4, vm.uiState.value.assignedPassengersCount)
+        assertEquals(90, vm.uiState.value.availableSeatsTotal)
+
+        // Search filtering by stop/corridor
+        vm.setSearchQuery("Summertown")
+        assertEquals(1, vm.uiState.value.filteredRoutes.size)
+        assertEquals("rt_oxf_02", vm.uiState.value.filteredRoutes.first().id)
+
+        vm.clearFilters()
+        assertEquals(3, vm.uiState.value.filteredRoutes.size)
+
+        // Status filtering
+        vm.setStatusFilter(com.example.features.transport.domain.RouteStatus.DELAYED)
+        assertEquals(1, vm.uiState.value.filteredRoutes.size)
+        assertEquals("rt_oxf_03", vm.uiState.value.filteredRoutes.first().id)
+
+        vm.clearFilters()
+
+        // Only open active seats filter
+        vm.toggleOnlyAvailableSeatsFilter()
+        assertEquals(2, vm.uiState.value.filteredRoutes.size)
+        assertTrue(vm.uiState.value.filteredRoutes.all { it.hasAvailableSeat })
+        vm.clearFilters()
+
+        // Register a new fleet route
+        vm.openAddRouteDialog()
+        assertTrue(vm.uiState.value.showAddRouteDialog)
+        vm.addRoute(
+            routeCode = "RT-OXF-04",
+            routeName = "Iffley & Cowley Marsh Loop",
+            vehicleNumber = "OXF-BUS-404",
+            vehicleType = com.example.features.transport.domain.VehicleType.ELECTRIC_COACH,
+            capacity = 30,
+            driverName = "Evelyn Reed",
+            driverPhone = "+44 7700 900555",
+            attendantName = "Samuel Brooks",
+            departureTime = "07:20 AM",
+            arrivalTime = "08:08 AM",
+            primaryStopName = "Iffley Lock Stop",
+            primaryStopPickupTime = "07:28 AM",
+            primaryStopMonthlyFee = 90.0,
+            notes = "Wheelchair ramp equipped"
+        )
+        assertFalse(vm.uiState.value.showAddRouteDialog)
+        assertEquals(4, vm.uiState.value.totalRoutesCount)
+
+        val createdRoute = vm.uiState.value.routes.first { it.routeCode == "RT-OXF-04" }
+        assertEquals(30, createdRoute.availableSeatsCount)
+        assertEquals(1, createdRoute.stops.size)
+
+        // Board a student passenger
+        vm.openAssignPassengerDialog(createdRoute)
+        assertTrue(vm.uiState.value.showAssignPassengerDialog)
+        vm.assignPassenger(
+            routeId = createdRoute.id,
+            studentName = "Isaac Newton",
+            rollNumber = "OXF-10A-010",
+            gradeLevel = "Grade 10 - A",
+            stopId = createdRoute.stops.first().stopId,
+            stopName = createdRoute.stops.first().stopName,
+            guardianContact = "+44 7700 900666",
+            isMorningPickup = true,
+            isAfternoonDrop = true
+        )
+        assertFalse(vm.uiState.value.showAssignPassengerDialog)
+
+        val afterBoard = vm.uiState.value.routes.first { it.id == createdRoute.id }
+        assertEquals(1, afterBoard.occupiedSeatsCount)
+        assertEquals(29, afterBoard.availableSeatsCount)
+        val boardedPax = afterBoard.passengers.first()
+        assertEquals("Isaac Newton", boardedPax.studentName)
+
+        // Inspect manifest, add stop, change status, and remove passenger
+        vm.openRouteDetail(afterBoard)
+        assertTrue(vm.uiState.value.showRouteDetailDialog)
+        vm.openAddStopDialog(afterBoard)
+        assertTrue(vm.uiState.value.showAddStopDialog)
+        vm.addStopToRoute(
+            routeId = afterBoard.id,
+            stopName = "Carfax Tower Stop",
+            pickupTime = "07:45 AM",
+            dropTime = "03:30 PM",
+            landmark = "Queen Street Corner",
+            monthlyFee = 75.0
+        )
+        assertFalse(vm.uiState.value.showAddStopDialog)
+        assertEquals(2, vm.uiState.value.routes.first { it.id == createdRoute.id }.stops.size)
+
+        vm.updateRouteStatus(afterBoard.id, com.example.features.transport.domain.RouteStatus.DELAYED)
+        assertEquals(
+            com.example.features.transport.domain.RouteStatus.DELAYED,
+            vm.uiState.value.routes.first { it.id == createdRoute.id }.status
+        )
+
+        vm.removePassenger(afterBoard.id, boardedPax.passengerId)
+        val afterRemove = vm.uiState.value.routes.first { it.id == createdRoute.id }
+        assertEquals(0, afterRemove.occupiedSeatsCount)
+        assertEquals(30, afterRemove.availableSeatsCount)
+        vm.closeRouteDetail()
+        assertFalse(vm.uiState.value.showRouteDetailDialog)
+
+        // RBAC enforcement: Parent has TRANSPORT_VIEW only, cannot manage fleet or assign riders
+        TenantContext.setTenant("sch_oxford_01", UserRole.PARENT, "par_001")
+        vm.dismissStatusMessage()
+        vm.openAddRouteDialog()
+        assertFalse(vm.uiState.value.showAddRouteDialog)
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+
+        vm.dismissStatusMessage()
+        vm.updateRouteStatus(createdRoute.id, com.example.features.transport.domain.RouteStatus.ACTIVE)
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+        assertEquals(
+            com.example.features.transport.domain.RouteStatus.DELAYED,
+            vm.uiState.value.routes.first { it.id == createdRoute.id }.status
+        )
+    }
+
+    @Test
+    fun verifySchoolEventAndRsvpFirestoreSerializationAndCapacityMetrics() {
+        val rsvp = com.example.features.events.domain.EventRsvpRecord(
+            rsvpId = "rsvp_test_01",
+            userId = "par_001",
+            attendeeName = "David Rahman",
+            attendeeRole = "Parent",
+            guestsCount = 3,
+            notes = "Front row seating requested"
+        )
+
+        val rsvpMap = rsvp.toFirestoreMap()
+        assertEquals("rsvp_test_01", rsvpMap["rsvpId"])
+        assertEquals("David Rahman", rsvpMap["attendeeName"])
+        assertEquals(3, rsvpMap["guestsCount"])
+
+        val deserializedRsvp = com.example.features.events.domain.EventRsvpRecord.fromFirestoreMap(rsvpMap)
+        assertEquals(rsvp.rsvpId, deserializedRsvp.rsvpId)
+        assertEquals(rsvp.attendeeName, deserializedRsvp.attendeeName)
+        assertEquals(3, deserializedRsvp.guestsCount)
+
+        val event = com.example.features.events.domain.SchoolEvent(
+            id = "evt_test_01",
+            schoolId = "sch_oxford_01",
+            title = "Annual Winter Concert",
+            description = "Orchestra and choir showcase.",
+            category = com.example.features.events.domain.EventCategory.CULTURAL,
+            status = com.example.features.events.domain.EventStatus.UPCOMING,
+            eventDate = "2026-12-12",
+            startTime = "06:00 PM",
+            endTime = "08:30 PM",
+            venue = "Main Auditorium",
+            organizerName = "Music Department",
+            targetAudience = "All Families",
+            isHoliday = false,
+            rsvpRequired = true,
+            maxCapacity = 5,
+            rsvps = listOf(rsvp)
+        )
+
+        assertEquals(3, event.totalRsvpHeadcount)
+        assertEquals(2, event.remainingRsvpSlots)
+        assertTrue(event.isRsvpOpen)
+
+        val eventMap = event.toFirestoreMap()
+        assertEquals("evt_test_01", eventMap["id"])
+        assertEquals("sch_oxford_01", eventMap["schoolId"])
+        assertEquals("CULTURAL", eventMap["category"])
+        assertEquals("UPCOMING", eventMap["status"])
+        assertEquals(5, eventMap["maxCapacity"])
+
+        val deserializedEvent = com.example.features.events.domain.SchoolEvent.fromFirestoreMap(
+            event.id,
+            event.schoolId,
+            eventMap
+        )
+        assertEquals(event.id, deserializedEvent.id)
+        assertEquals(event.title, deserializedEvent.title)
+        assertEquals(event.category, deserializedEvent.category)
+        assertEquals(1, deserializedEvent.rsvps.size)
+        assertEquals("David Rahman", deserializedEvent.rsvps.first().attendeeName)
+    }
+
+    @Test
+    fun verifyEventRepositoryPreSeededEventsAndTenantIsolation() {
+        val repo = com.example.features.events.data.EventRepository()
+
+        val oxfordEvents = repo.getPreSeededEvents("sch_oxford_01")
+        assertEquals(4, oxfordEvents.size)
+        assertTrue(oxfordEvents.all { it.schoolId == "sch_oxford_01" })
+
+        val cambridgeEvents = repo.getPreSeededEvents("sch_cambridge_101")
+        assertEquals(2, cambridgeEvents.size)
+        assertTrue(cambridgeEvents.all { it.schoolId == "sch_cambridge_101" })
+
+        val holidays = oxfordEvents.filter { it.isHoliday }
+        assertEquals(1, holidays.size)
+        assertEquals("Founder's Day & Spring Bank Holiday", holidays.first().title)
+    }
+
+    @Test
+    fun verifyEventViewModelFilteringCreationRsvpCapacityStatusAndRbac() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.events.presentation.EventViewModel()
+
+        assertEquals(4, vm.uiState.value.totalEventsCount)
+        assertEquals(3, vm.uiState.value.upcomingEventsCount)
+        assertEquals(1, vm.uiState.value.holidaysCount)
+        assertEquals(7, vm.uiState.value.totalRsvpCount)
+
+        // Search filtering
+        vm.setSearchQuery("Robotics")
+        assertEquals(1, vm.uiState.value.filteredEvents.size)
+        assertEquals("evt_oxf_04", vm.uiState.value.filteredEvents.first().id)
+
+        vm.clearFilters()
+        assertEquals(4, vm.uiState.value.filteredEvents.size)
+
+        // Category & holiday filtering
+        vm.setCategoryFilter(com.example.features.events.domain.EventCategory.SPORTS)
+        assertEquals(1, vm.uiState.value.filteredEvents.size)
+        assertEquals("evt_oxf_01", vm.uiState.value.filteredEvents.first().id)
+        vm.clearFilters()
+
+        vm.toggleOnlyHolidaysFilter()
+        assertEquals(1, vm.uiState.value.filteredEvents.size)
+        assertEquals("evt_oxf_03", vm.uiState.value.filteredEvents.first().id)
+        vm.clearFilters()
+
+        // Create new event with RSVP capacity
+        vm.openCreateEventDialog()
+        assertTrue(vm.uiState.value.showCreateEventDialog)
+        vm.createEvent(
+            title = "Graduation & Prize Giving Gala",
+            description = "Senior class awards and valedictory address.",
+            category = com.example.features.events.domain.EventCategory.ACADEMIC,
+            eventDate = "2026-06-20",
+            startTime = "05:00 PM",
+            endTime = "08:00 PM",
+            venue = "Oxford Great Hall",
+            organizerName = "Dr. Robert Vance",
+            targetAudience = "Grade 12 Families",
+            isHoliday = false,
+            rsvpRequired = true,
+            maxCapacity = 4
+        )
+        assertFalse(vm.uiState.value.showCreateEventDialog)
+        assertEquals(5, vm.uiState.value.totalEventsCount)
+
+        val createdEvent = vm.uiState.value.events.first { it.title == "Graduation & Prize Giving Gala" }
+        assertEquals(4, createdEvent.remainingRsvpSlots)
+
+        // Parent role has EVENTS_VIEW and can submit RSVP
+        TenantContext.setTenant("sch_oxford_01", UserRole.PARENT, "par_010")
+        vm.openRsvpDialog(createdEvent)
+        assertTrue(vm.uiState.value.showRsvpDialog)
+        vm.submitRsvp(
+            eventId = createdEvent.id,
+            attendeeName = "Claire Smith",
+            attendeeRole = "Parent",
+            guestsCount = 3,
+            notes = "Reserved seating"
+        )
+        assertFalse(vm.uiState.value.showRsvpDialog)
+
+        val afterFirstRsvp = vm.uiState.value.events.first { it.id == createdEvent.id }
+        assertEquals(3, afterFirstRsvp.totalRsvpHeadcount)
+        assertEquals(1, afterFirstRsvp.remainingRsvpSlots)
+
+        // Exceeding capacity should be blocked cleanly with errorMessage
+        vm.dismissStatusMessage()
+        vm.submitRsvp(
+            eventId = createdEvent.id,
+            attendeeName = "Late Guest",
+            attendeeRole = "Parent",
+            guestsCount = 2,
+            notes = ""
+        )
+        assertTrue(vm.uiState.value.errorMessage?.contains("remaining") == true)
+        assertEquals(3, vm.uiState.value.events.first { it.id == createdEvent.id }.totalRsvpHeadcount)
+
+        // RBAC enforcement: Parent cannot create events or update status (requires EVENTS_MANAGE)
+        vm.dismissStatusMessage()
+        vm.openCreateEventDialog()
+        assertFalse(vm.uiState.value.showCreateEventDialog)
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+
+        vm.dismissStatusMessage()
+        vm.updateEventStatus(createdEvent.id, com.example.features.events.domain.EventStatus.CANCELLED)
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+        assertEquals(
+            com.example.features.events.domain.EventStatus.UPCOMING,
+            vm.uiState.value.events.first { it.id == createdEvent.id }.status
+        )
+
+        // Admin updates status and verifies detail dialog
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        vm.openEventDetail(afterFirstRsvp)
+        assertTrue(vm.uiState.value.showEventDetailDialog)
+        vm.updateEventStatus(createdEvent.id, com.example.features.events.domain.EventStatus.ONGOING)
+        assertEquals(
+            com.example.features.events.domain.EventStatus.ONGOING,
+            vm.uiState.value.events.first { it.id == createdEvent.id }.status
+        )
+        vm.closeEventDetail()
+        assertFalse(vm.uiState.value.showEventDetailDialog)
+    }
+
+    @Test
+    fun verifySchoolDocumentFirestoreSerializationAndCredentialHelpers() {
+        val certDoc = com.example.features.documents.domain.SchoolDocument(
+            id = "doc_test_01",
+            schoolId = "sch_oxford_01",
+            documentCode = "CERT-OXF-999",
+            title = "Transfer & Character Certificate",
+            description = "Official verified academic transfer certificate.",
+            category = com.example.features.documents.domain.DocumentCategory.CERTIFICATE,
+            verificationStatus = com.example.features.documents.domain.DocumentVerificationStatus.VERIFIED,
+            targetGradeOrDepartment = "Grade 10 - Section A",
+            issuedToName = "Amina Rahman",
+            issuedToId = "OXF-10A-001",
+            fileName = "Transfer_Cert_Amina.pdf",
+            fileSizeLabel = "610 KB",
+            academicYear = "2026-2027",
+            issuedBy = "Office of the Registrar",
+            issuedDate = "2026-04-01",
+            downloadCount = 5,
+            isPinned = true,
+            createdAt = 1711929600000L
+        )
+
+        assertTrue(certDoc.isOfficialCredential)
+        assertTrue(certDoc.isActive)
+
+        val map = certDoc.toFirestoreMap()
+        val restored = com.example.features.documents.domain.SchoolDocument.fromFirestoreMap(
+            id = "doc_test_01",
+            schoolId = "sch_oxford_01",
+            data = map
+        )
+
+        assertEquals(certDoc.documentCode, restored.documentCode)
+        assertEquals(certDoc.title, restored.title)
+        assertEquals(com.example.features.documents.domain.DocumentCategory.CERTIFICATE, restored.category)
+        assertEquals(com.example.features.documents.domain.DocumentVerificationStatus.VERIFIED, restored.verificationStatus)
+        assertEquals("Amina Rahman", restored.issuedToName)
+        assertEquals("OXF-10A-001", restored.issuedToId)
+        assertEquals(5, restored.downloadCount)
+        assertTrue(restored.isPinned)
+
+        val revokedSyllabus = certDoc.copy(
+            category = com.example.features.documents.domain.DocumentCategory.SYLLABUS,
+            verificationStatus = com.example.features.documents.domain.DocumentVerificationStatus.REVOKED
+        )
+        assertFalse(revokedSyllabus.isOfficialCredential)
+        assertFalse(revokedSyllabus.isActive)
+    }
+
+    @Test
+    fun verifyDocumentRepositoryPreSeededDocumentsAndTenantIsolation() {
+        val repo = com.example.features.documents.data.DocumentRepository()
+
+        val oxfordDocs = repo.getPreSeededDocuments("sch_oxford_01")
+        assertEquals(4, oxfordDocs.size)
+        assertTrue(oxfordDocs.all { it.schoolId == "sch_oxford_01" })
+        assertTrue(oxfordDocs.any { it.id == "doc_oxf_01" && it.category == com.example.features.documents.domain.DocumentCategory.SYLLABUS })
+        assertTrue(oxfordDocs.any { it.id == "doc_oxf_02" && it.isOfficialCredential })
+
+        val cambridgeDocs = repo.getPreSeededDocuments("sch_cambridge_101")
+        assertEquals(2, cambridgeDocs.size)
+        assertTrue(cambridgeDocs.all { it.schoolId == "sch_cambridge_101" })
+        assertTrue(cambridgeDocs.none { it.id.startsWith("doc_oxf") })
+    }
+
+    @Test
+    fun verifyDocumentViewModelFilteringPublishingDownloadsPinningAndRbac() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.documents.presentation.DocumentViewModel()
+
+        // Verify pre-seeded counts for Oxford
+        assertEquals(4, vm.uiState.value.totalDocumentsCount)
+        assertEquals(3, vm.uiState.value.verifiedDocumentsCount)
+        assertEquals(2, vm.uiState.value.credentialsCount)
+        assertEquals(163, vm.uiState.value.totalDownloadsCount)
+
+        // Search query filtering
+        vm.setSearchQuery("Bonafide")
+        assertEquals(1, vm.uiState.value.filteredDocuments.size)
+        assertEquals("doc_oxf_02", vm.uiState.value.filteredDocuments.first().id)
+
+        // Category filtering
+        vm.clearFilters()
+        vm.setCategoryFilter(com.example.features.documents.domain.DocumentCategory.POLICY)
+        assertEquals(1, vm.uiState.value.filteredDocuments.size)
+        assertEquals("doc_oxf_04", vm.uiState.value.filteredDocuments.first().id)
+
+        // Pinned-only filtering
+        vm.clearFilters()
+        vm.toggleOnlyPinnedFilter()
+        assertEquals(2, vm.uiState.value.filteredDocuments.size)
+        assertTrue(vm.uiState.value.filteredDocuments.all { it.isPinned })
+        vm.clearFilters()
+
+        // Publish a new document as SCHOOL_ADMIN
+        vm.openCreateDocumentDialog()
+        assertTrue(vm.uiState.value.showCreateDocumentDialog)
+        vm.publishDocument(
+            documentCode = "syl-oxf-chem10",
+            title = "Grade 10 Organic Chemistry Lab Manual",
+            description = "Safety guidelines and titration worksheets.",
+            category = com.example.features.documents.domain.DocumentCategory.SYLLABUS,
+            targetGradeOrDepartment = "Grade 10 • Science",
+            issuedToName = "",
+            issuedToId = "",
+            fileName = "Oxford_G10_Chem_Manual.pdf",
+            fileSizeLabel = "1.7 MB",
+            isPinned = false
+        )
+        assertFalse(vm.uiState.value.showCreateDocumentDialog)
+        assertEquals(5, vm.uiState.value.totalDocumentsCount)
+
+        val createdDoc = vm.uiState.value.documents.first { it.documentCode == "SYL-OXF-CHEM10" }
+        assertEquals("Grade 10 Organic Chemistry Lab Manual", createdDoc.title)
+        assertEquals(0, createdDoc.downloadCount)
+
+        // Switch to STUDENT role (has DOCUMENTS_VIEW, lacks DOCUMENTS_MANAGE)
+        TenantContext.setTenant("sch_oxford_01", UserRole.STUDENT, "stu_oxf_001")
+        vm.recordDownload(createdDoc.id)
+        val afterDownload = vm.uiState.value.documents.first { it.id == createdDoc.id }
+        assertEquals(1, afterDownload.downloadCount)
+        assertEquals(164, vm.uiState.value.totalDownloadsCount)
+
+        // RBAC blocks student from creating/modifying documents
+        vm.dismissStatusMessage()
+        vm.openCreateDocumentDialog()
+        assertFalse(vm.uiState.value.showCreateDocumentDialog)
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+
+        vm.dismissStatusMessage()
+        vm.publishDocument(
+            documentCode = "FAKE-01",
+            title = "Unauthorized Doc",
+            description = "",
+            category = com.example.features.documents.domain.DocumentCategory.FORM,
+            targetGradeOrDepartment = "",
+            issuedToName = "",
+            issuedToId = "",
+            fileName = "fake.pdf",
+            fileSizeLabel = "100 KB",
+            isPinned = false
+        )
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+        assertEquals(5, vm.uiState.value.totalDocumentsCount)
+
+        vm.dismissStatusMessage()
+        vm.updateVerificationStatus(createdDoc.id, com.example.features.documents.domain.DocumentVerificationStatus.ARCHIVED)
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+
+        vm.dismissStatusMessage()
+        vm.togglePin(createdDoc.id)
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+
+        // Switch back to SCHOOL_ADMIN for detail, pin toggle, and status update
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        vm.openDocumentDetail(afterDownload)
+        assertTrue(vm.uiState.value.showDocumentDetailDialog)
+
+        vm.togglePin(createdDoc.id)
+        assertTrue(vm.uiState.value.documents.first { it.id == createdDoc.id }.isPinned)
+
+        vm.updateVerificationStatus(createdDoc.id, com.example.features.documents.domain.DocumentVerificationStatus.ARCHIVED)
+        assertEquals(
+            com.example.features.documents.domain.DocumentVerificationStatus.ARCHIVED,
+            vm.uiState.value.documents.first { it.id == createdDoc.id }.verificationStatus
+        )
+        vm.closeDocumentDetail()
+        assertFalse(vm.uiState.value.showDocumentDetailDialog)
+    }
+
+    @Test
+    fun verifyLeaveRequestFirestoreSerializationAndWorkflowHelpers() {
+        val pendingLeave = com.example.features.leave.domain.LeaveRequest(
+            id = "lv_test_01",
+            schoolId = "sch_oxford_01",
+            requestCode = "LV-OXF-555",
+            applicantId = "stu_oxf_001",
+            applicantName = "Amina Rahman",
+            applicantType = com.example.features.leave.domain.LeaveApplicantType.STUDENT,
+            departmentOrGrade = "Grade 10 - Section A",
+            category = com.example.features.leave.domain.LeaveCategory.SICK,
+            startDate = "2026-04-12",
+            endDate = "2026-04-14",
+            totalDays = 3,
+            reason = "Recovered from viral fever.",
+            attachmentNote = "Clinic_Note.pdf",
+            status = com.example.features.leave.domain.LeaveStatus.PENDING,
+            submittedDate = "2026-04-11",
+            createdAt = 1712793600000L
+        )
+
+        assertTrue(pendingLeave.isPending)
+        assertTrue(pendingLeave.canWithdraw)
+        assertFalse(pendingLeave.isApproved)
+
+        val map = pendingLeave.toFirestoreMap()
+        val restored = com.example.features.leave.domain.LeaveRequest.fromFirestoreMap(
+            id = "lv_test_01",
+            schoolId = "sch_oxford_01",
+            data = map
+        )
+
+        assertEquals("LV-OXF-555", restored.requestCode)
+        assertEquals("Amina Rahman", restored.applicantName)
+        assertEquals(com.example.features.leave.domain.LeaveApplicantType.STUDENT, restored.applicantType)
+        assertEquals(com.example.features.leave.domain.LeaveCategory.SICK, restored.category)
+        assertEquals(com.example.features.leave.domain.LeaveStatus.PENDING, restored.status)
+        assertEquals(3, restored.totalDays)
+        assertEquals("Clinic_Note.pdf", restored.attachmentNote)
+
+        val approved = restored.copy(
+            status = com.example.features.leave.domain.LeaveStatus.APPROVED,
+            reviewerName = "Dr. Robert Vance"
+        )
+        assertTrue(approved.isApproved)
+        assertFalse(approved.isPending)
+        assertFalse(approved.canWithdraw)
+    }
+
+    @Test
+    fun verifyLeaveRepositoryPreSeededRecordsAndTenantIsolation() {
+        val repo = com.example.features.leave.data.LeaveRepository()
+
+        val oxfordLeaves = repo.getPreSeededLeaveRequests("sch_oxford_01")
+        assertEquals(4, oxfordLeaves.size)
+        assertTrue(oxfordLeaves.all { it.schoolId == "sch_oxford_01" })
+        assertTrue(oxfordLeaves.any { it.id == "lv_oxf_01" && it.isPending })
+        assertTrue(oxfordLeaves.any { it.id == "lv_oxf_02" && it.isApproved })
+
+        val cambridgeLeaves = repo.getPreSeededLeaveRequests("sch_cambridge_101")
+        assertEquals(2, cambridgeLeaves.size)
+        assertTrue(cambridgeLeaves.all { it.schoolId == "sch_cambridge_101" })
+        assertTrue(cambridgeLeaves.none { it.id.startsWith("lv_oxf") })
+
+        assertEquals("schools/sch_oxford_01/leaves", com.example.core.tenant.TenantPathProvider.leavesPath("sch_oxford_01"))
+    }
+
+    @Test
+    fun verifyLeaveViewModelSubmissionApprovalWithdrawalFilteringAndRbac() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.leave.presentation.LeaveViewModel()
+
+        // Verify pre-seeded counts for Oxford
+        assertEquals(4, vm.uiState.value.totalCount)
+        assertEquals(2, vm.uiState.value.pendingCount)
+        assertEquals(1, vm.uiState.value.approvedCount)
+        assertEquals(3, vm.uiState.value.totalApprovedDays)
+
+        // Search and filter checks
+        vm.setSearchQuery("Symposium")
+        assertEquals(1, vm.uiState.value.filteredLeaveRequests.size)
+        assertEquals("lv_oxf_02", vm.uiState.value.filteredLeaveRequests.first().id)
+
+        vm.clearFilters()
+        vm.setStatusFilter(com.example.features.leave.domain.LeaveStatus.PENDING)
+        assertEquals(2, vm.uiState.value.filteredLeaveRequests.size)
+
+        vm.clearFilters()
+        vm.setApplicantTypeFilter(com.example.features.leave.domain.LeaveApplicantType.STAFF)
+        assertEquals(1, vm.uiState.value.filteredLeaveRequests.size)
+        assertEquals("lv_oxf_04", vm.uiState.value.filteredLeaveRequests.first().id)
+        vm.clearFilters()
+
+        // Switch to STUDENT role (has LEAVES_APPLY, lacks LEAVES_APPROVE)
+        TenantContext.setTenant("sch_oxford_01", UserRole.STUDENT, "stu_oxf_001")
+        vm.openApplyLeaveDialog()
+        assertTrue(vm.uiState.value.showApplyLeaveDialog)
+        vm.submitLeaveRequest(
+            applicantName = "Amina Rahman",
+            applicantType = com.example.features.leave.domain.LeaveApplicantType.STUDENT,
+            departmentOrGrade = "Grade 10 - Section A",
+            category = com.example.features.leave.domain.LeaveCategory.ACADEMIC,
+            startDate = "2026-05-04",
+            endDate = "2026-05-05",
+            totalDays = 2,
+            reason = "Attending Regional Science Olympiad Finals.",
+            attachmentNote = "Olympiad_Admit_Card.pdf"
+        )
+        assertFalse(vm.uiState.value.showApplyLeaveDialog)
+        assertEquals(5, vm.uiState.value.totalCount)
+        assertEquals(3, vm.uiState.value.pendingCount)
+
+        val submittedLeave = vm.uiState.value.leaveRequests.first {
+            it.reason.contains("Science Olympiad Finals")
+        }
+
+        // RBAC: Student cannot approve/reject or open review dialog
+        vm.dismissStatusMessage()
+        vm.openReviewDialog(submittedLeave)
+        assertFalse(vm.uiState.value.showReviewDialog)
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+
+        vm.dismissStatusMessage()
+        vm.approveLeaveRequest(submittedLeave.id, "Self-approved")
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+        assertEquals(com.example.features.leave.domain.LeaveStatus.PENDING, vm.uiState.value.leaveRequests.first { it.id == submittedLeave.id }.status)
+
+        // Student can withdraw their own pending leave, or let's submit a second one to test both withdrawal and approval
+        vm.submitLeaveRequest(
+            applicantName = "Amina Rahman",
+            applicantType = com.example.features.leave.domain.LeaveApplicantType.STUDENT,
+            departmentOrGrade = "Grade 10 - Section A",
+            category = com.example.features.leave.domain.LeaveCategory.CASUAL,
+            startDate = "2026-05-10",
+            endDate = "2026-05-10",
+            totalDays = 1,
+            reason = "Personal dental checkup."
+        )
+        val withdrawableLeave = vm.uiState.value.leaveRequests.first { it.reason == "Personal dental checkup." }
+        vm.withdrawLeaveRequest(withdrawableLeave.id)
+        assertEquals(
+            com.example.features.leave.domain.LeaveStatus.CANCELLED,
+            vm.uiState.value.leaveRequests.first { it.id == withdrawableLeave.id }.status
+        )
+
+        // Switch to SCHOOL_ADMIN to approve submittedLeave and verify rejection requires remarks
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        vm.dismissStatusMessage()
+        vm.rejectLeaveRequest("lv_oxf_03", "")
+        assertTrue(vm.uiState.value.errorMessage?.contains("reason") == true)
+
+        vm.openReviewDialog(submittedLeave)
+        assertTrue(vm.uiState.value.showReviewDialog)
+        vm.approveLeaveRequest(submittedLeave.id, "Approved for Olympiad participation.")
+        assertFalse(vm.uiState.value.showReviewDialog)
+
+        val approvedOlympiad = vm.uiState.value.leaveRequests.first { it.id == submittedLeave.id }
+        assertEquals(com.example.features.leave.domain.LeaveStatus.APPROVED, approvedOlympiad.status)
+        assertEquals(5, vm.uiState.value.totalApprovedDays)
+
+        // Detail dialog lifecycle
+        vm.openDetailDialog(approvedOlympiad)
+        assertTrue(vm.uiState.value.showDetailDialog)
+        vm.closeDetailDialog()
+        assertFalse(vm.uiState.value.showDetailDialog)
+    }
 }
-
-
-
-
-
 

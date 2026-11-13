@@ -61,6 +61,18 @@ enum class Permission(val key: String, val description: String) {
     TRANSPORT_VIEW("transport.view", "View vehicle routes and stops"),
     TRANSPORT_MANAGE("transport.manage", "Assign vehicles, drivers, and routes"),
 
+    // Events & Academic Calendar
+    EVENTS_VIEW("events.view", "View school events and academic calendar"),
+    EVENTS_MANAGE("events.manage", "Create, reschedule, and cancel calendar events"),
+
+    // Documents, Syllabi, ID Cards & Certificates
+    DOCUMENTS_VIEW("documents.view", "View syllabi, handbooks, ID cards, and certificates"),
+    DOCUMENTS_MANAGE("documents.manage", "Upload institutional documents and issue credentials"),
+
+    // Leave Requests & Approval Workflow
+    LEAVES_APPLY("leaves.apply", "Submit and view personal or child leave requests"),
+    LEAVES_APPROVE("leaves.approve", "Review, approve, or decline school leave applications"),
+
     // Messaging
     MESSAGES_SEND("messages.send", "Send direct or group messages"),
     MESSAGES_VIEW("messages.view", "Access communication channels");
@@ -82,6 +94,9 @@ enum class Permission(val key: String, val description: String) {
                     NOTICES_VIEW, NOTICES_PUBLISH,
                     LIBRARY_VIEW, LIBRARY_MANAGE,
                     TRANSPORT_VIEW, TRANSPORT_MANAGE,
+                    EVENTS_VIEW, EVENTS_MANAGE,
+                    DOCUMENTS_VIEW, DOCUMENTS_MANAGE,
+                    LEAVES_APPLY, LEAVES_APPROVE,
                     MESSAGES_VIEW, MESSAGES_SEND
                 )
 
@@ -92,6 +107,9 @@ enum class Permission(val key: String, val description: String) {
                     EXAMS_VIEW, RESULTS_VIEW, RESULTS_ENTER,
                     HOMEWORK_VIEW, HOMEWORK_CREATE, HOMEWORK_GRADE,
                     NOTICES_VIEW,
+                    EVENTS_VIEW,
+                    DOCUMENTS_VIEW, DOCUMENTS_MANAGE,
+                    LEAVES_APPLY, LEAVES_APPROVE,
                     MESSAGES_VIEW, MESSAGES_SEND
                 )
 
@@ -99,6 +117,9 @@ enum class Permission(val key: String, val description: String) {
                     STUDENTS_VIEW,
                     FEES_VIEW, FEES_CREATE, FEES_COLLECT, FEES_REPORTS,
                     NOTICES_VIEW,
+                    EVENTS_VIEW,
+                    DOCUMENTS_VIEW,
+                    LEAVES_APPLY,
                     MESSAGES_VIEW, MESSAGES_SEND
                 )
 
@@ -106,6 +127,9 @@ enum class Permission(val key: String, val description: String) {
                     STUDENTS_VIEW,
                     LIBRARY_VIEW, LIBRARY_MANAGE,
                     NOTICES_VIEW,
+                    EVENTS_VIEW,
+                    DOCUMENTS_VIEW,
+                    LEAVES_APPLY,
                     MESSAGES_VIEW, MESSAGES_SEND
                 )
 
@@ -113,12 +137,18 @@ enum class Permission(val key: String, val description: String) {
                     STUDENTS_VIEW,
                     TRANSPORT_VIEW, TRANSPORT_MANAGE,
                     NOTICES_VIEW,
+                    EVENTS_VIEW,
+                    DOCUMENTS_VIEW,
+                    LEAVES_APPLY,
                     MESSAGES_VIEW, MESSAGES_SEND
                 )
 
                 UserRole.STAFF -> setOf(
                     NOTICES_VIEW,
                     ATTENDANCE_VIEW,
+                    EVENTS_VIEW,
+                    DOCUMENTS_VIEW,
+                    LEAVES_APPLY,
                     MESSAGES_VIEW, MESSAGES_SEND
                 )
 
@@ -130,6 +160,9 @@ enum class Permission(val key: String, val description: String) {
                     HOMEWORK_VIEW,
                     NOTICES_VIEW,
                     TRANSPORT_VIEW,
+                    EVENTS_VIEW,
+                    DOCUMENTS_VIEW,
+                    LEAVES_APPLY,
                     MESSAGES_VIEW, MESSAGES_SEND
                 )
 
@@ -141,6 +174,9 @@ enum class Permission(val key: String, val description: String) {
                     NOTICES_VIEW,
                     LIBRARY_VIEW,
                     TRANSPORT_VIEW,
+                    EVENTS_VIEW,
+                    DOCUMENTS_VIEW,
+                    LEAVES_APPLY,
                     MESSAGES_VIEW, MESSAGES_SEND
                 )
             }

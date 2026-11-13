@@ -363,6 +363,144 @@
       },
       "required": ["id", "schoolId", "title", "subjectName", "gradeLevel", "dueDate", "totalMarks", "status"]
     },
+    "LibraryBook": {
+      "title": "LibraryBook",
+      "description": "School library book inventory entry with lending circulation ledger",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "isbn": { "type": "string" },
+        "title": { "type": "string" },
+        "author": { "type": "string" },
+        "publisher": { "type": "string" },
+        "category": { "type": "string" },
+        "shelfLocation": { "type": "string" },
+        "totalCopies": { "type": "integer" },
+        "availableCopies": { "type": "integer" },
+        "publicationYear": { "type": "integer" },
+        "description": { "type": "string" },
+        "loans": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["id", "schoolId", "isbn", "title", "author", "category", "totalCopies", "availableCopies"]
+    },
+    "TransportRoute": {
+      "title": "TransportRoute",
+      "description": "School transport fleet vehicle, driver schedule, boarding stops, and student passenger manifest",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "routeCode": { "type": "string" },
+        "routeName": { "type": "string" },
+        "vehicleNumber": { "type": "string" },
+        "vehicleType": { "type": "string" },
+        "capacity": { "type": "integer" },
+        "driverName": { "type": "string" },
+        "driverPhone": { "type": "string" },
+        "attendantName": { "type": "string" },
+        "departureTime": { "type": "string" },
+        "arrivalTime": { "type": "string" },
+        "status": { "type": "string" },
+        "gpsTrackingEnabled": { "type": "boolean" },
+        "stops": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "passengers": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["id", "schoolId", "routeCode", "routeName", "vehicleNumber", "capacity", "driverName", "status"]
+    },
+    "SchoolEvent": {
+      "title": "SchoolEvent",
+      "description": "School calendar event, holiday observance, and RSVP attendee tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "status": { "type": "string" },
+        "eventDate": { "type": "string" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "venue": { "type": "string" },
+        "organizerName": { "type": "string" },
+        "targetAudience": { "type": "string" },
+        "isHoliday": { "type": "boolean" },
+        "rsvpRequired": { "type": "boolean" },
+        "maxCapacity": { "type": "integer" },
+        "rsvps": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["id", "schoolId", "title", "category", "status", "eventDate", "venue"]
+    },
+    "SchoolDocument": {
+      "title": "SchoolDocument",
+      "description": "Institutional documents, course syllabi, policy handbooks, ID cards, and verified certificates",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "documentCode": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "verificationStatus": { "type": "string" },
+        "targetGradeOrDepartment": { "type": "string" },
+        "issuedToName": { "type": "string" },
+        "issuedToId": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileSizeLabel": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "issuedBy": { "type": "string" },
+        "issuedDate": { "type": "string" },
+        "downloadCount": { "type": "integer" },
+        "isPinned": { "type": "boolean" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["id", "schoolId", "documentCode", "title", "category", "verificationStatus", "fileName"]
+    },
+    "LeaveRequest": {
+      "title": "LeaveRequest",
+      "description": "Student, faculty, and staff leave request application and approval workflow record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "requestCode": { "type": "string" },
+        "applicantId": { "type": "string" },
+        "applicantName": { "type": "string" },
+        "applicantType": { "type": "string" },
+        "departmentOrGrade": { "type": "string" },
+        "category": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "totalDays": { "type": "integer" },
+        "reason": { "type": "string" },
+        "attachmentNote": { "type": "string" },
+        "status": { "type": "string" },
+        "reviewerName": { "type": "string" },
+        "reviewRemarks": { "type": "string" },
+        "submittedDate": { "type": "string" },
+        "reviewedDate": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["id", "schoolId", "requestCode", "applicantName", "applicantType", "category", "startDate", "endDate", "status"]
+    },
     "TenantEntity": {
       "title": "TenantEntity",
       "description": "General representation of a tenant-scoped record in any of the 15 isolated subcollections",
@@ -433,20 +571,24 @@
       "description": "Subcollection 11: Daily homework and assignment postings"
     },
     "/schools/{schoolId}/library/{bookId}": {
-      "schema": "TenantEntity",
+      "schema": "LibraryBook",
       "description": "Subcollection 12: Library catalog, books & issue records"
     },
     "/schools/{schoolId}/transport/{routeId}": {
-      "schema": "TenantEntity",
+      "schema": "TransportRoute",
       "description": "Subcollection 13: Transport routes, buses & driver schedules"
     },
     "/schools/{schoolId}/events/{eventId}": {
-      "schema": "TenantEntity",
+      "schema": "SchoolEvent",
       "description": "Subcollection 14: School calendar events & sports days"
     },
     "/schools/{schoolId}/documents/{docId}": {
-      "schema": "TenantEntity",
+      "schema": "SchoolDocument",
       "description": "Subcollection 15: Institutional documents, syllabi & archives"
+    },
+    "/schools/{schoolId}/leaves/{leaveId}": {
+      "schema": "LeaveRequest",
+      "description": "Leave request applications and approval workflow logs"
     }
   }
 }

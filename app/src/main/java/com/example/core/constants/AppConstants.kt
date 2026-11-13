@@ -36,6 +36,7 @@ object AppConstants {
     const val SUB_COLLECTION_TRANSPORT = "transport"
     const val SUB_COLLECTION_EVENTS = "events"
     const val SUB_COLLECTION_DOCUMENTS = "documents"
+    const val SUB_COLLECTION_LEAVES = "leaves"
     const val SUB_COLLECTION_MESSAGES = "messages"
 
     // Pagination

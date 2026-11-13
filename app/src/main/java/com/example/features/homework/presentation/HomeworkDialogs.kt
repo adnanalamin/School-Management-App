@@ -49,6 +49,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.core.security.Permission
+import com.example.core.security.TenantContext
 import com.example.features.homework.domain.HomeworkAssignment
 import com.example.features.homework.domain.HomeworkSubmission
 import com.example.features.homework.domain.SubmissionStatus
@@ -596,13 +598,19 @@ fun HomeworkDetailDialog(
                                             color = MaterialTheme.colorScheme.tertiary,
                                             style = MaterialTheme.typography.bodyMedium
                                         )
-                                    } else {
+                                    } else if (TenantContext.hasPermission(Permission.HOMEWORK_GRADE)) {
                                         OutlinedButton(
                                             onClick = { onGradeClick(sub) },
                                             modifier = Modifier.height(32.dp).testTag("btn_grade_${sub.rollNumber}")
                                         ) {
                                             Text("Grade", fontSize = 11.sp)
                                         }
+                                    } else {
+                                        Text(
+                                            text = sub.status.displayName,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
                                     }
                                 }
                                 if (sub.feedback.isNotBlank()) {
@@ -620,11 +628,13 @@ fun HomeworkDetailDialog(
             }
         },
         confirmButton = {
-            Button(
-                onClick = onSubmitClick,
-                modifier = Modifier.testTag("btn_turn_in_deliverable_from_detail")
-            ) {
-                Text("Turn In Deliverable")
+            if (TenantContext.hasPermission(Permission.HOMEWORK_SUBMIT)) {
+                Button(
+                    onClick = onSubmitClick,
+                    modifier = Modifier.testTag("btn_turn_in_deliverable_from_detail")
+                ) {
+                    Text("Turn In Deliverable")
+                }
             }
         },
         dismissButton = {

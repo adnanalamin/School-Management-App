@@ -6,10 +6,15 @@ import androidx.compose.material.icons.filled.Apartment
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.DirectionsBus
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.EventBusy
+import androidx.compose.material.icons.filled.FolderShared
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.LocalLibrary
 import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
@@ -122,6 +127,41 @@ sealed class AppScreen(
         requiredPermission = Permission.HOMEWORK_VIEW
     )
 
+    data object Library : AppScreen(
+        route = "library",
+        title = "Library & Circulation",
+        icon = Icons.Default.LocalLibrary,
+        requiredPermission = Permission.LIBRARY_VIEW
+    )
+
+    data object Transport : AppScreen(
+        route = "transport",
+        title = "Transport & Fleet",
+        icon = Icons.Default.DirectionsBus,
+        requiredPermission = Permission.TRANSPORT_VIEW
+    )
+
+    data object Events : AppScreen(
+        route = "events",
+        title = "Events & Calendar",
+        icon = Icons.Default.Event,
+        requiredPermission = Permission.EVENTS_VIEW
+    )
+
+    data object Documents : AppScreen(
+        route = "documents",
+        title = "Documents & Vault",
+        icon = Icons.Default.FolderShared,
+        requiredPermission = Permission.DOCUMENTS_VIEW
+    )
+
+    data object Leaves : AppScreen(
+        route = "leaves",
+        title = "Leave & Approvals",
+        icon = Icons.Default.EventBusy,
+        requiredPermission = Permission.LEAVES_APPLY
+    )
+
     data object Profile : AppScreen(
         route = "profile",
         title = "Profile",
@@ -175,6 +215,11 @@ sealed class AppScreen(
                 Results.route -> Results
                 Notices.route -> Notices
                 Homework.route -> Homework
+                Library.route -> Library
+                Transport.route -> Transport
+                Events.route -> Events
+                Documents.route -> Documents
+                Leaves.route -> Leaves
                 Profile.route -> Profile
                 Settings.route -> Settings
                 DesignSystem.route -> DesignSystem

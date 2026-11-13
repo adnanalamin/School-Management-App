@@ -69,6 +69,8 @@ class DashboardViewModel : ViewModel() {
             UserRole.STUDENT -> "Amina Rahman (Grade 10)"
             UserRole.PARENT -> "David Rahman (Parent)"
             UserRole.ACCOUNTANT -> "Marcus Vance (Finance)"
+            UserRole.LIBRARIAN -> "Eleanor Rigby (Librarian)"
+            UserRole.TRANSPORT_MANAGER -> "Arthur Pendelton (Fleet Ops)"
             else -> "Staff Member"
         }
         _uiState.update {

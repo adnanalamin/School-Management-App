@@ -88,12 +88,12 @@ app/src/main/java/com/example/
 - [x] **Phase 13: Examination Scheduling & Timetable System** (COMPLETED)
 - [x] **Phase 14: Academic Grade Sheets & GPA Grading Engine** (COMPLETED)
 - [x] **Phase 15: Circulars, Announcements & Noticeboard Broadcast System** (COMPLETED)
-- [ ] **Phase 16: Examination Management & Scheduling**
-- [ ] **Phase 17: Result Grading & GPA Processing**
-- [ ] **Phase 18: Fee Invoicing & Payment Collection**
-- [ ] **Phase 19: Notices & Targeted Announcements**
-- [ ] **Phase 20: Push Notifications & Message Center**
-- [ ] **Phase 21: Leave Request & Approval Workflow**
+- [x] **Phase 16: Homework & Assignments Pipeline** (COMPLETED)
+- [x] **Phase 17: Library Book Inventory & Lending System** (COMPLETED)
+- [x] **Phase 18: School Transport & Route Fleet Management** (COMPLETED)
+- [x] **Phase 19: School Events & Academic Calendar** (COMPLETED)
+- [x] **Phase 20: Institutional Documents, Syllabi, ID Cards & Certificates** (COMPLETED)
+- [x] **Phase 21: Leave Request & Approval Workflow** (COMPLETED)
 - [ ] **Phase 22: Library Book Inventory & Lending**
 - [ ] **Phase 23: School Transport & Route Fleet**
 - [ ] **Phase 24: School Events & Academic Calendar**
