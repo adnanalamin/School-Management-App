@@ -76,6 +76,22 @@ test("Authenticated user can read and write schools/{schoolId}/messages", async 
   await assertFails(unauthDb.collection("schools/sch_oxford_01/messages").get());
 });
 
+test("Authenticated user can read and write schools/{schoolId}/reports", async () => {
+  const authDb = testEnv.authenticatedContext("usr_admin_1").firestore();
+  await assertSucceeds(
+    authDb.collection("schools/sch_oxford_01/reports").doc("rpt_1").set({
+      id: "rpt_1",
+      schoolId: "sch_oxford_01",
+      reportCode: "RPT-OXF-201",
+      title: "Executive Digest",
+    })
+  );
+  await assertSucceeds(authDb.collection("schools/sch_oxford_01/reports").get());
+
+  const unauthDb = testEnv.unauthenticatedContext().firestore();
+  await assertFails(unauthDb.collection("schools/sch_oxford_01/reports").get());
+});
+
 test("Authenticated user cannot access unknown subcollections", async () => {
   const authDb = testEnv.authenticatedContext("usr_student_1").firestore();
   await assertFails(authDb.collection("schools/sch_oxford_01/unknown_sub").get());

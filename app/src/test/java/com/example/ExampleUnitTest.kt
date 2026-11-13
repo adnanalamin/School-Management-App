@@ -3119,4 +3119,181 @@ class ExampleUnitTest {
         assertTrue(vm.uiState.value.filteredThreads.any { it.id == newThread.id })
         vm.closeThread()
     }
+
+    @Test
+    fun verifyExecutiveReportSnapshotFirestoreSerializationAndHelpers() {
+        val snapshot = com.example.features.analytics.domain.ExecutiveReportSnapshot(
+            id = "rpt_test_01",
+            schoolId = "sch_oxford_01",
+            reportCode = "RPT-OXF-999",
+            title = "Q2 Bursar Fee Audit",
+            domain = com.example.features.analytics.domain.AnalyticsDomain.FINANCE,
+            period = com.example.features.analytics.domain.ReportPeriod.MONTHLY,
+            generatedBy = "Marcus Vance (Finance)",
+            generatedDate = "2026-04-10",
+            headlineKpi = "$29,575 Collected • $7,837 Pending",
+            summaryNotes = "Monthly collection reconciliation report.",
+            exportFormat = "CSV",
+            createdAt = 1712707200000L
+        )
+
+        assertTrue(snapshot.isCsvExport)
+        val map = snapshot.toFirestoreMap()
+        val restored = com.example.features.analytics.domain.ExecutiveReportSnapshot.fromFirestoreMap(
+            id = "rpt_test_01",
+            schoolId = "sch_oxford_01",
+            data = map
+        )
+
+        assertEquals("RPT-OXF-999", restored.reportCode)
+        assertEquals("Q2 Bursar Fee Audit", restored.title)
+        assertEquals(com.example.features.analytics.domain.AnalyticsDomain.FINANCE, restored.domain)
+        assertEquals(com.example.features.analytics.domain.ReportPeriod.MONTHLY, restored.period)
+        assertEquals("Marcus Vance (Finance)", restored.generatedBy)
+        assertEquals("CSV", restored.exportFormat)
+        assertTrue(restored.isCsvExport)
+
+        val pdfSnapshot = snapshot.copy(exportFormat = "PDF")
+        assertFalse(pdfSnapshot.isCsvExport)
+    }
+
+    @Test
+    fun verifyAnalyticsRepositoryTenantMetricsCsvAndReportsIsolation() {
+        val repo = com.example.features.analytics.data.AnalyticsRepository()
+
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val oxfordBundle = repo.getAnalyticsBundle(
+            schoolId = "sch_oxford_01",
+            period = com.example.features.analytics.domain.ReportPeriod.TERM_1
+        )
+        assertEquals("sch_oxford_01", oxfordBundle.schoolId)
+        assertEquals(1480, oxfordBundle.totalStudents)
+        assertEquals(3.68f, oxfordBundle.averageGpa, 0.01f)
+        assertEquals(5, oxfordBundle.attendanceTrend.size)
+        assertEquals(4, oxfordBundle.revenueBreakdown.size)
+        assertEquals(5, oxfordBundle.gpaDistribution.size)
+        assertEquals(4, oxfordBundle.departmentMetrics.size)
+
+        // Cross-tenant boundary enforcement
+        var securityViolationThrown = false
+        try {
+            repo.getAnalyticsBundle(
+                schoolId = "sch_cambridge_101",
+                period = com.example.features.analytics.domain.ReportPeriod.TERM_1
+            )
+        } catch (_: AppError.SecurityViolation) {
+            securityViolationThrown = true
+        }
+        assertTrue(securityViolationThrown)
+
+        TenantContext.setTenant("sch_cambridge_101", UserRole.SCHOOL_ADMIN, "usr_cam_admin")
+        val cambridgeBundle = repo.getAnalyticsBundle(
+            schoolId = "sch_cambridge_101",
+            period = com.example.features.analytics.domain.ReportPeriod.TERM_1
+        )
+        assertEquals("sch_cambridge_101", cambridgeBundle.schoolId)
+        assertEquals(920, cambridgeBundle.totalStudents)
+        assertEquals(3.54f, cambridgeBundle.averageGpa, 0.01f)
+        assertEquals(5, cambridgeBundle.attendanceTrend.size)
+        assertEquals(4, cambridgeBundle.revenueBreakdown.size)
+        assertEquals(5, cambridgeBundle.gpaDistribution.size)
+        assertEquals(4, cambridgeBundle.departmentMetrics.size)
+
+        val oxfordReports = repo.getPreSeededReports("sch_oxford_01")
+        assertEquals(3, oxfordReports.size)
+        assertTrue(oxfordReports.all { it.schoolId == "sch_oxford_01" })
+
+        val cambridgeReports = repo.getPreSeededReports("sch_cambridge_101")
+        assertEquals(2, cambridgeReports.size)
+        assertTrue(cambridgeReports.all { it.schoolId == "sch_cambridge_101" })
+        assertTrue(cambridgeReports.none { it.id.startsWith("rpt_oxf") })
+
+        assertEquals(
+            "schools/sch_oxford_01/reports",
+            com.example.core.tenant.TenantPathProvider.reportsPath("sch_oxford_01")
+        )
+
+        val csv = repo.buildCsvExportPayload(oxfordBundle, oxfordReports.first())
+        assertTrue(csv.contains("ReportCode"))
+        assertTrue(csv.contains("sch_oxford_01"))
+        assertTrue(csv.contains("TotalStudents"))
+    }
+
+    @Test
+    fun verifyAnalyticsViewModelPeriodDomainReportGenerationCsvAndRbac() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.analytics.presentation.AnalyticsViewModel()
+
+        // Verify pre-seeded state for Oxford
+        assertEquals(3, vm.uiState.value.totalReportsCount)
+        assertNotNull(vm.uiState.value.bundle)
+        assertEquals(94.2f, vm.uiState.value.bundle!!.averageAttendancePct, 0.01f)
+        val termCollected = vm.uiState.value.bundle!!.collectedRevenueAmount
+
+        // Period switch updates revenue scale (MONTHLY = 0.35f)
+        vm.selectPeriod(com.example.features.analytics.domain.ReportPeriod.MONTHLY)
+        val monthlyCollected = vm.uiState.value.bundle!!.collectedRevenueAmount
+        assertEquals(termCollected * 0.35, monthlyCollected, 1.0)
+
+        // Domain filtering shows matching domain + OVERVIEW reports
+        vm.selectDomain(com.example.features.analytics.domain.AnalyticsDomain.FINANCE)
+        assertTrue(vm.uiState.value.filteredReports.all {
+            it.domain == com.example.features.analytics.domain.AnalyticsDomain.FINANCE ||
+                it.domain == com.example.features.analytics.domain.AnalyticsDomain.OVERVIEW
+        })
+        assertEquals(2, vm.uiState.value.filteredReports.size)
+
+        // Report preview opens and generates CSV payload
+        val firstReport = vm.uiState.value.reports.first()
+        vm.openReportPreview(firstReport)
+        assertTrue(vm.uiState.value.showReportPreviewDialog)
+        assertTrue(vm.uiState.value.exportedCsvPreview.contains(firstReport.reportCode))
+        vm.closeReportPreview()
+        assertFalse(vm.uiState.value.showReportPreviewDialog)
+
+        // Switch to TEACHER role (has ANALYTICS_VIEW, lacks ANALYTICS_EXPORT)
+        TenantContext.setTenant("sch_oxford_01", UserRole.TEACHER, "tch_oxf_001")
+        vm.dismissStatusMessage()
+        vm.openGenerateReportDialog()
+        assertFalse(vm.uiState.value.showGenerateReportDialog)
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+
+        vm.dismissStatusMessage()
+        vm.generateReport(
+            title = "Unauthorized Teacher Export",
+            domain = com.example.features.analytics.domain.AnalyticsDomain.ACADEMICS,
+            period = com.example.features.analytics.domain.ReportPeriod.TERM_1,
+            exportFormat = "CSV",
+            summaryNotes = "Should be blocked"
+        )
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+        assertEquals(3, vm.uiState.value.totalReportsCount)
+
+        vm.dismissStatusMessage()
+        vm.deleteReport(firstReport.id)
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+        assertEquals(3, vm.uiState.value.totalReportsCount)
+
+        // Switch to ACCOUNTANT role (has ANALYTICS_EXPORT)
+        TenantContext.setTenant("sch_oxford_01", UserRole.ACCOUNTANT, "acc_oxf_001")
+        vm.dismissStatusMessage()
+        vm.openGenerateReportDialog()
+        assertTrue(vm.uiState.value.showGenerateReportDialog)
+        vm.generateReport(
+            title = "Bursar Term Audit",
+            domain = com.example.features.analytics.domain.AnalyticsDomain.FINANCE,
+            period = com.example.features.analytics.domain.ReportPeriod.TERM_1,
+            exportFormat = "CSV",
+            summaryNotes = "Quarterly check"
+        )
+        assertFalse(vm.uiState.value.showGenerateReportDialog)
+        assertEquals(4, vm.uiState.value.totalReportsCount)
+
+        val generated = vm.uiState.value.reports.first { it.title == "Bursar Term Audit" }
+        assertEquals("CSV", generated.exportFormat)
+        assertTrue(generated.isCsvExport)
+
+        vm.deleteReport(generated.id)
+        assertEquals(3, vm.uiState.value.totalReportsCount)
+    }
 }

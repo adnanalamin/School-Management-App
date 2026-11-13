@@ -81,6 +81,8 @@ import com.example.features.leave.presentation.LeaveScreen
 import com.example.features.leave.presentation.LeaveViewModel
 import com.example.features.messages.presentation.MessageScreen
 import com.example.features.messages.presentation.MessageViewModel
+import com.example.features.analytics.presentation.AnalyticsScreen
+import com.example.features.analytics.presentation.AnalyticsViewModel
 import com.example.features.splash.SplashScreen
 import com.example.features.splash.SplashViewModel
 import com.example.shared.components.EduBottomNavBar
@@ -118,6 +120,7 @@ fun AppNavGraph(
         AppScreen.Documents.route,
         AppScreen.Leaves.route,
         AppScreen.Messages.route,
+        AppScreen.Analytics.route,
         AppScreen.Settings.route
     )
 
@@ -271,6 +274,7 @@ fun AppNavGraph(
                     onNavigateToDocuments = { safeNavigate(AppScreen.Documents) },
                     onNavigateToLeaves = { safeNavigate(AppScreen.Leaves) },
                     onNavigateToMessages = { safeNavigate(AppScreen.Messages) },
+                    onNavigateToAnalytics = { safeNavigate(AppScreen.Analytics) },
                     onNavigateToProfile = { navController.navigate(AppScreen.Profile.route) }
                 )
             }
@@ -421,6 +425,16 @@ fun AppNavGraph(
                 val messageViewModel: MessageViewModel = viewModel()
                 MessageScreen(
                     viewModel = messageViewModel,
+                    onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
+                )
+            }
+
+            // Executive Reports & Data Analytics (Phase 23)
+            composable(AppScreen.Analytics.route) {
+                BackHandler { safeNavigate(AppScreen.MainDashboard) }
+                val analyticsViewModel: AnalyticsViewModel = viewModel()
+                AnalyticsScreen(
+                    viewModel = analyticsViewModel,
                     onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
                 )
             }

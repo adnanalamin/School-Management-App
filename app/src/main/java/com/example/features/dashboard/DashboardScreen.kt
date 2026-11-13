@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.AttachMoney
@@ -92,6 +93,7 @@ fun DashboardScreen(
     onNavigateToDocuments: () -> Unit = {},
     onNavigateToLeaves: () -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
+    onNavigateToAnalytics: () -> Unit = {},
     onNavigateToProfile: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -348,6 +350,14 @@ fun DashboardScreen(
                             icon = Icons.Default.Forum,
                             onClick = onNavigateToMessages,
                             testTag = "action_messages"
+                        )
+                    }
+                    if (viewModel.hasPermission(Permission.ANALYTICS_VIEW)) {
+                        QuickActionButton(
+                            label = "Analytics",
+                            icon = Icons.Default.Analytics,
+                            onClick = onNavigateToAnalytics,
+                            testTag = "action_analytics"
                         )
                     }
                 }

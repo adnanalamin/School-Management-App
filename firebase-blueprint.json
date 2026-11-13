@@ -530,6 +530,26 @@
       },
       "required": ["id", "schoolId", "threadCode", "subject", "channelType", "priority", "participantsLabel"]
     },
+    "ExecutiveReportSnapshot": {
+      "title": "ExecutiveReportSnapshot",
+      "description": "Generated executive KPI summary and exportable report snapshot",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "reportCode": { "type": "string" },
+        "title": { "type": "string" },
+        "domain": { "type": "string" },
+        "period": { "type": "string" },
+        "generatedBy": { "type": "string" },
+        "generatedDate": { "type": "string" },
+        "headlineKpi": { "type": "string" },
+        "summaryNotes": { "type": "string" },
+        "exportFormat": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["id", "schoolId", "reportCode", "title", "domain", "period", "generatedBy", "exportFormat"]
+    },
     "TenantEntity": {
       "title": "TenantEntity",
       "description": "General representation of a tenant-scoped record in any of the 15 isolated subcollections",
@@ -622,6 +642,10 @@
     "/schools/{schoolId}/messages/{threadId}": {
       "schema": "InternalMessageThread",
       "description": "Tenant-isolated internal communication threads and messages"
+    },
+    "/schools/{schoolId}/reports/{reportId}": {
+      "schema": "ExecutiveReportSnapshot",
+      "description": "Executive analytics report snapshots and CSV/PDF export logs"
     }
   }
 }

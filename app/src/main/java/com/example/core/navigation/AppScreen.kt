@@ -2,6 +2,7 @@ package com.example.core.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Apartment
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Dashboard
@@ -170,6 +171,13 @@ sealed class AppScreen(
         requiredPermission = Permission.MESSAGES_VIEW
     )
 
+    data object Analytics : AppScreen(
+        route = "analytics",
+        title = "Reports & Analytics",
+        icon = Icons.Default.Analytics,
+        requiredPermission = Permission.ANALYTICS_VIEW
+    )
+
     data object Profile : AppScreen(
         route = "profile",
         title = "Profile",
@@ -229,6 +237,7 @@ sealed class AppScreen(
                 Documents.route -> Documents
                 Leaves.route -> Leaves
                 Messages.route -> Messages
+                Analytics.route -> Analytics
                 Profile.route -> Profile
                 Settings.route -> Settings
                 DesignSystem.route -> DesignSystem

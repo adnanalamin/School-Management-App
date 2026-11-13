@@ -76,7 +76,11 @@ enum class Permission(val key: String, val description: String) {
     // Messaging
     MESSAGES_SEND("messages.send", "Send direct or group messages"),
     MESSAGES_VIEW("messages.view", "Access communication channels"),
-    MESSAGES_MODERATE("messages.moderate", "Pin, archive, or remove communication threads");
+    MESSAGES_MODERATE("messages.moderate", "Pin, archive, or remove communication threads"),
+
+    // Executive Reports & Data Analytics
+    ANALYTICS_VIEW("analytics.view", "View executive KPI dashboards and operational analytics"),
+    ANALYTICS_EXPORT("analytics.export", "Generate, preview, and export executive reports");
 
     companion object {
         fun getPermissionsForRole(role: UserRole): Set<Permission> {
@@ -98,7 +102,8 @@ enum class Permission(val key: String, val description: String) {
                     EVENTS_VIEW, EVENTS_MANAGE,
                     DOCUMENTS_VIEW, DOCUMENTS_MANAGE,
                     LEAVES_APPLY, LEAVES_APPROVE,
-                    MESSAGES_VIEW, MESSAGES_SEND, MESSAGES_MODERATE
+                    MESSAGES_VIEW, MESSAGES_SEND, MESSAGES_MODERATE,
+                    ANALYTICS_VIEW, ANALYTICS_EXPORT
                 )
 
                 UserRole.TEACHER -> setOf(
@@ -111,7 +116,8 @@ enum class Permission(val key: String, val description: String) {
                     EVENTS_VIEW,
                     DOCUMENTS_VIEW, DOCUMENTS_MANAGE,
                     LEAVES_APPLY, LEAVES_APPROVE,
-                    MESSAGES_VIEW, MESSAGES_SEND
+                    MESSAGES_VIEW, MESSAGES_SEND,
+                    ANALYTICS_VIEW
                 )
 
                 UserRole.ACCOUNTANT -> setOf(
@@ -121,7 +127,8 @@ enum class Permission(val key: String, val description: String) {
                     EVENTS_VIEW,
                     DOCUMENTS_VIEW,
                     LEAVES_APPLY,
-                    MESSAGES_VIEW, MESSAGES_SEND
+                    MESSAGES_VIEW, MESSAGES_SEND,
+                    ANALYTICS_VIEW, ANALYTICS_EXPORT
                 )
 
                 UserRole.LIBRARIAN -> setOf(
@@ -131,7 +138,8 @@ enum class Permission(val key: String, val description: String) {
                     EVENTS_VIEW,
                     DOCUMENTS_VIEW,
                     LEAVES_APPLY,
-                    MESSAGES_VIEW, MESSAGES_SEND
+                    MESSAGES_VIEW, MESSAGES_SEND,
+                    ANALYTICS_VIEW
                 )
 
                 UserRole.TRANSPORT_MANAGER -> setOf(
@@ -141,7 +149,8 @@ enum class Permission(val key: String, val description: String) {
                     EVENTS_VIEW,
                     DOCUMENTS_VIEW,
                     LEAVES_APPLY,
-                    MESSAGES_VIEW, MESSAGES_SEND
+                    MESSAGES_VIEW, MESSAGES_SEND,
+                    ANALYTICS_VIEW
                 )
 
                 UserRole.STAFF -> setOf(

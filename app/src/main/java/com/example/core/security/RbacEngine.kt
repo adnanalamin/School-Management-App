@@ -35,7 +35,9 @@ object RbacEngine {
             Permission.SCHOOL_CONFIG_VIEW,
             Permission.SCHOOL_CONFIG_EDIT,
             Permission.DOCUMENTS_VIEW,
-            Permission.DOCUMENTS_MANAGE
+            Permission.DOCUMENTS_MANAGE,
+            Permission.ANALYTICS_VIEW,
+            Permission.ANALYTICS_EXPORT
         ),
         "Student Lifecycle & Enrollment" to listOf(
             Permission.STUDENTS_VIEW,
