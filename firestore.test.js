@@ -92,6 +92,22 @@ test("Authenticated user can read and write schools/{schoolId}/reports", async (
   await assertFails(unauthDb.collection("schools/sch_oxford_01/reports").get());
 });
 
+test("Authenticated user can read and write schools/{schoolId}/branding", async () => {
+  const authDb = testEnv.authenticatedContext("usr_admin_1").firestore();
+  await assertSucceeds(
+    authDb.collection("schools/sch_oxford_01/branding").doc("brand_profile").set({
+      id: "brand_profile",
+      schoolId: "sch_oxford_01",
+      schoolDisplayName: "Oxford International Academy",
+      palettePreset: "OXFORD_NAVY",
+    })
+  );
+  await assertSucceeds(authDb.collection("schools/sch_oxford_01/branding").get());
+
+  const unauthDb = testEnv.unauthenticatedContext().firestore();
+  await assertFails(unauthDb.collection("schools/sch_oxford_01/branding").get());
+});
+
 test("Authenticated user cannot access unknown subcollections", async () => {
   const authDb = testEnv.authenticatedContext("usr_student_1").firestore();
   await assertFails(authDb.collection("schools/sch_oxford_01/unknown_sub").get());

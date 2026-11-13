@@ -3296,4 +3296,150 @@ class ExampleUnitTest {
         vm.deleteReport(generated.id)
         assertEquals(3, vm.uiState.value.totalReportsCount)
     }
+
+    @Test
+    fun verifySchoolBrandingConfigFirestoreSerializationAndHelpers() {
+        val defaultConfig = com.example.features.branding.domain.SchoolBrandingConfig(
+            id = "brand_profile",
+            schoolId = "sch_oxford_01",
+            schoolDisplayName = "Oxford International Academy",
+            schoolCode = "OXF-101",
+            motto = "Knowledge & Integrity",
+            palettePreset = com.example.features.branding.domain.BrandPalettePreset.OXFORD_NAVY,
+            cornerStyle = com.example.features.branding.domain.UiCornerStyle.BALANCED
+        )
+        assertTrue(defaultConfig.isDefaultTheme)
+
+        val customConfig = defaultConfig.copy(
+            palettePreset = com.example.features.branding.domain.BrandPalettePreset.EMERALD_STEM,
+            crestEmblem = com.example.features.branding.domain.CrestEmblemStyle.COMPASS_GLOBAL,
+            cornerStyle = com.example.features.branding.domain.UiCornerStyle.ROUNDED,
+            layoutDensity = com.example.features.branding.domain.DashboardLayoutDensity.EXECUTIVE,
+            reportHeaderStyle = com.example.features.branding.domain.ReportCardHeaderStyle.MODERN_BANNER,
+            currencyCode = "EUR",
+            currencySymbol = "€",
+            darkModeDefault = true
+        )
+        assertFalse(customConfig.isDefaultTheme)
+        assertTrue(customConfig.formattedBrandSummary.contains("Emerald STEM Academy"))
+
+        val map = customConfig.toFirestoreMap()
+        val restored = com.example.features.branding.domain.SchoolBrandingConfig.fromFirestoreMap(
+            id = "brand_profile",
+            schoolId = "sch_oxford_01",
+            data = map
+        )
+
+        assertEquals("Oxford International Academy", restored.schoolDisplayName)
+        assertEquals("OXF-101", restored.schoolCode)
+        assertEquals(com.example.features.branding.domain.BrandPalettePreset.EMERALD_STEM, restored.palettePreset)
+        assertEquals(com.example.features.branding.domain.CrestEmblemStyle.COMPASS_GLOBAL, restored.crestEmblem)
+        assertEquals(com.example.features.branding.domain.UiCornerStyle.ROUNDED, restored.cornerStyle)
+        assertEquals(com.example.features.branding.domain.DashboardLayoutDensity.EXECUTIVE, restored.layoutDensity)
+        assertEquals(com.example.features.branding.domain.ReportCardHeaderStyle.MODERN_BANNER, restored.reportHeaderStyle)
+        assertEquals("EUR", restored.currencyCode)
+        assertEquals("€", restored.currencySymbol)
+        assertTrue(restored.darkModeDefault)
+    }
+
+    @Test
+    fun verifyBrandingRepositoryTenantDefaultsAndBoundaryIsolation() {
+        val repo = com.example.features.branding.data.BrandingRepository()
+
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val oxfordDefault = repo.getDefaultBrandingForSchool("sch_oxford_01")
+        assertEquals("OXF-101", oxfordDefault.schoolCode)
+        assertEquals(com.example.features.branding.domain.BrandPalettePreset.OXFORD_NAVY, oxfordDefault.palettePreset)
+
+        var securityViolationThrown = false
+        try {
+            repo.getDefaultBrandingForSchool("sch_cambridge_101")
+        } catch (_: AppError.SecurityViolation) {
+            securityViolationThrown = true
+        }
+        assertTrue(securityViolationThrown)
+
+        TenantContext.setTenant("sch_cambridge_101", UserRole.SCHOOL_ADMIN, "usr_cam_admin")
+        val cambridgeDefault = repo.getDefaultBrandingForSchool("sch_cambridge_101")
+        assertEquals("CAM-204", cambridgeDefault.schoolCode)
+        assertEquals(com.example.features.branding.domain.BrandPalettePreset.CAMBRIDGE_CRIMSON, cambridgeDefault.palettePreset)
+
+        assertEquals(
+            "schools/sch_oxford_01/branding",
+            com.example.core.tenant.TenantPathProvider.brandingPath("sch_oxford_01")
+        )
+    }
+
+    @Test
+    fun verifyBrandingViewModelDraftUpdatesLiveThemeControllerValidationAndRbac() {
+        com.example.core.theme.BrandThemeController.resetToDefault()
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.branding.presentation.BrandingViewModel()
+
+        assertNotNull(vm.uiState.value.activeConfig)
+        assertFalse(vm.uiState.value.hasUnsavedChanges)
+        assertEquals("OXF-101", vm.uiState.value.activeConfig?.schoolCode)
+
+        // Update identity & palette draft fields
+        vm.selectTab(com.example.features.branding.presentation.BrandingTab.THEME_PALETTE)
+        vm.selectPalettePreset(com.example.features.branding.domain.BrandPalettePreset.EMERALD_STEM)
+        vm.selectCrestEmblem(com.example.features.branding.domain.CrestEmblemStyle.COMPASS_GLOBAL)
+        vm.selectCornerStyle(com.example.features.branding.domain.UiCornerStyle.ROUNDED)
+        vm.updateIdentityFields(
+            schoolDisplayName = "Oxford Global STEM Academy",
+            motto = "Innovate & Inspire"
+        )
+        assertTrue(vm.uiState.value.hasUnsavedChanges)
+
+        // Validation blocks blank display name
+        vm.updateIdentityFields(schoolDisplayName = "")
+        vm.saveBrandingChanges()
+        assertTrue(vm.uiState.value.errorMessage?.contains("empty") == true)
+
+        // Restore valid name and save -> updates live BrandThemeController
+        vm.dismissStatusMessage()
+        vm.updateIdentityFields(schoolDisplayName = "Oxford Global STEM Academy")
+        vm.saveBrandingChanges()
+        assertFalse(vm.uiState.value.hasUnsavedChanges)
+        assertEquals("Oxford Global STEM Academy", vm.uiState.value.activeConfig?.schoolDisplayName)
+        assertEquals(
+            com.example.features.branding.domain.BrandPalettePreset.EMERALD_STEM,
+            com.example.core.theme.BrandThemeController.overrideState.value?.palettePreset
+        )
+        assertEquals(
+            com.example.features.branding.domain.UiCornerStyle.ROUNDED,
+            com.example.core.theme.BrandThemeController.overrideState.value?.cornerStyle
+        )
+
+        // Preview dialog lifecycle
+        vm.openLiveCardPreview()
+        assertTrue(vm.uiState.value.showLiveCardPreviewDialog)
+        vm.closeLiveCardPreview()
+        assertFalse(vm.uiState.value.showLiveCardPreviewDialog)
+
+        // RBAC blocks Teacher from editing or resetting branding
+        TenantContext.setTenant("sch_oxford_01", UserRole.TEACHER, "tch_oxf_001")
+        vm.dismissStatusMessage()
+        vm.selectPalettePreset(com.example.features.branding.domain.BrandPalettePreset.ROYAL_SCHOLAR)
+        vm.saveBrandingChanges()
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+
+        vm.dismissStatusMessage()
+        vm.openResetConfirmDialog()
+        assertFalse(vm.uiState.value.showResetConfirmDialog)
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+
+        // School Admin resets branding back to defaults
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        vm.dismissStatusMessage()
+        vm.openResetConfirmDialog()
+        assertTrue(vm.uiState.value.showResetConfirmDialog)
+        vm.confirmResetToDefault()
+        assertFalse(vm.uiState.value.showResetConfirmDialog)
+        assertEquals(
+            com.example.features.branding.domain.BrandPalettePreset.OXFORD_NAVY,
+            vm.uiState.value.activeConfig?.palettePreset
+        )
+        com.example.core.theme.BrandThemeController.resetToDefault()
+    }
 }

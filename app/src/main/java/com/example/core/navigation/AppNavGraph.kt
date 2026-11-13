@@ -83,6 +83,8 @@ import com.example.features.messages.presentation.MessageScreen
 import com.example.features.messages.presentation.MessageViewModel
 import com.example.features.analytics.presentation.AnalyticsScreen
 import com.example.features.analytics.presentation.AnalyticsViewModel
+import com.example.features.branding.presentation.BrandingScreen
+import com.example.features.branding.presentation.BrandingViewModel
 import com.example.features.splash.SplashScreen
 import com.example.features.splash.SplashViewModel
 import com.example.shared.components.EduBottomNavBar
@@ -121,6 +123,7 @@ fun AppNavGraph(
         AppScreen.Leaves.route,
         AppScreen.Messages.route,
         AppScreen.Analytics.route,
+        AppScreen.Branding.route,
         AppScreen.Settings.route
     )
 
@@ -275,6 +278,7 @@ fun AppNavGraph(
                     onNavigateToLeaves = { safeNavigate(AppScreen.Leaves) },
                     onNavigateToMessages = { safeNavigate(AppScreen.Messages) },
                     onNavigateToAnalytics = { safeNavigate(AppScreen.Analytics) },
+                    onNavigateToBranding = { safeNavigate(AppScreen.Branding) },
                     onNavigateToProfile = { navController.navigate(AppScreen.Profile.route) }
                 )
             }
@@ -439,6 +443,16 @@ fun AppNavGraph(
                 )
             }
 
+            // School Customization & Branding Settings (Phase 24)
+            composable(AppScreen.Branding.route) {
+                BackHandler { safeNavigate(AppScreen.MainDashboard) }
+                val brandingViewModel: BrandingViewModel = viewModel()
+                BrandingScreen(
+                    viewModel = brandingViewModel,
+                    onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
+                )
+            }
+
             // User Profile Screen
             composable(AppScreen.Profile.route) {
                 val profileViewModel: ProfileViewModel = viewModel()
@@ -465,7 +479,8 @@ fun AppNavGraph(
                     onNavigateToFoundation = { navController.navigate(AppScreen.Foundation.route) },
                     onNavigateToDesignSystem = { navController.navigate(AppScreen.DesignSystem.route) },
                     onNavigateToTenantArchitecture = { navController.navigate(AppScreen.TenantArchitecture.route) },
-                    onNavigateToRbacMatrix = { navController.navigate(AppScreen.RbacMatrix.route) }
+                    onNavigateToRbacMatrix = { navController.navigate(AppScreen.RbacMatrix.route) },
+                    onNavigateToBranding = { safeNavigate(AppScreen.Branding) }
                 )
             }
 

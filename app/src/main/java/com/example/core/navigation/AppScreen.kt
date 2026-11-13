@@ -178,6 +178,14 @@ sealed class AppScreen(
         requiredPermission = Permission.ANALYTICS_VIEW
     )
 
+    data object Branding : AppScreen(
+        route = "branding",
+        title = "School Branding",
+        icon = Icons.Default.Palette,
+        requiredPermission = Permission.SCHOOL_CONFIG_VIEW,
+        allowedRoles = setOf(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
+    )
+
     data object Profile : AppScreen(
         route = "profile",
         title = "Profile",
@@ -238,6 +246,7 @@ sealed class AppScreen(
                 Leaves.route -> Leaves
                 Messages.route -> Messages
                 Analytics.route -> Analytics
+                Branding.route -> Branding
                 Profile.route -> Profile
                 Settings.route -> Settings
                 DesignSystem.route -> DesignSystem

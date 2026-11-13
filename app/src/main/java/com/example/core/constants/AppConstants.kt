@@ -39,6 +39,7 @@ object AppConstants {
     const val SUB_COLLECTION_LEAVES = "leaves"
     const val SUB_COLLECTION_MESSAGES = "messages"
     const val SUB_COLLECTION_REPORTS = "reports"
+    const val SUB_COLLECTION_BRANDING = "branding"
 
     // Pagination
     const val DEFAULT_PAGE_LIMIT = 20

@@ -54,6 +54,7 @@ fun SettingsScreen(
     onNavigateToDesignSystem: () -> Unit,
     onNavigateToTenantArchitecture: () -> Unit = {},
     onNavigateToRbacMatrix: () -> Unit = {},
+    onNavigateToBranding: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -129,6 +130,15 @@ fun SettingsScreen(
                         onClick = { viewModel.openSchoolDetailsDialog() },
                         testTag = "btn_view_school_metadata"
                     )
+                    if (com.example.core.security.TenantContext.hasPermission(com.example.core.security.Permission.SCHOOL_CONFIG_VIEW)) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        SettingClickableRow(
+                            title = "School Customization & Branding",
+                            subtitle = "Customize theme palette, crest emblem, motto & receipt headers",
+                            onClick = onNavigateToBranding,
+                            testTag = "btn_school_branding"
+                        )
+                    }
                 }
             }
 

@@ -101,6 +101,9 @@ object TenantPathProvider {
     fun reportsPath(schoolId: String = requireActiveSchoolId()): String =
         "${schoolPath(schoolId)}/${AppConstants.SUB_COLLECTION_REPORTS}"
 
+    fun brandingPath(schoolId: String = requireActiveSchoolId()): String =
+        "${schoolPath(schoolId)}/${AppConstants.SUB_COLLECTION_BRANDING}"
+
     /**
      * Cross-School Firewall: Verifies whether the requested school target matches the active session.
      */

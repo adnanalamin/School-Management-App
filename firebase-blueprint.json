@@ -550,6 +550,35 @@
       },
       "required": ["id", "schoolId", "reportCode", "title", "domain", "period", "generatedBy", "exportFormat"]
     },
+    "SchoolBrandingProfile": {
+      "title": "SchoolBrandingProfile",
+      "description": "School white-label customization, theme palette, crest emblem, regional defaults, and report card header settings",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "schoolDisplayName": { "type": "string" },
+        "schoolCode": { "type": "string" },
+        "motto": { "type": "string" },
+        "websiteUrl": { "type": "string" },
+        "supportEmail": { "type": "string" },
+        "academicSession": { "type": "string" },
+        "timezone": { "type": "string" },
+        "currencyCode": { "type": "string" },
+        "currencySymbol": { "type": "string" },
+        "palettePreset": { "type": "string" },
+        "crestEmblem": { "type": "string" },
+        "cornerStyle": { "type": "string" },
+        "layoutDensity": { "type": "string" },
+        "reportHeaderStyle": { "type": "string" },
+        "showSchoolCodeInHeader": { "type": "boolean" },
+        "showMottoOnReceipts": { "type": "boolean" },
+        "darkModeDefault": { "type": "boolean" },
+        "lastUpdatedBy": { "type": "string" },
+        "updatedAt": { "type": "integer" }
+      },
+      "required": ["id", "schoolId", "schoolDisplayName", "schoolCode", "palettePreset", "crestEmblem", "cornerStyle"]
+    },
     "TenantEntity": {
       "title": "TenantEntity",
       "description": "General representation of a tenant-scoped record in any of the 15 isolated subcollections",
@@ -646,6 +675,10 @@
     "/schools/{schoolId}/reports/{reportId}": {
       "schema": "ExecutiveReportSnapshot",
       "description": "Executive analytics report snapshots and CSV/PDF export logs"
+    },
+    "/schools/{schoolId}/branding/{brandingId}": {
+      "schema": "SchoolBrandingProfile",
+      "description": "Tenant-specific institutional customization, theme palette, crest, and report header configuration"
     }
   }
 }

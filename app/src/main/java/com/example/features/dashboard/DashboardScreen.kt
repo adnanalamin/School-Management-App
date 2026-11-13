@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.LocalLibrary
 import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.School
@@ -94,6 +95,7 @@ fun DashboardScreen(
     onNavigateToLeaves: () -> Unit = {},
     onNavigateToMessages: () -> Unit = {},
     onNavigateToAnalytics: () -> Unit = {},
+    onNavigateToBranding: () -> Unit = {},
     onNavigateToProfile: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -358,6 +360,14 @@ fun DashboardScreen(
                             icon = Icons.Default.Analytics,
                             onClick = onNavigateToAnalytics,
                             testTag = "action_analytics"
+                        )
+                    }
+                    if (viewModel.hasPermission(Permission.SCHOOL_CONFIG_VIEW)) {
+                        QuickActionButton(
+                            label = "Branding",
+                            icon = Icons.Default.Palette,
+                            onClick = onNavigateToBranding,
+                            testTag = "action_branding"
                         )
                     }
                 }
