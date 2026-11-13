@@ -29,7 +29,7 @@ service cloud.firestore {
           'students', 'teachers', 'parents', 'classes', 'sections',
           'attendance', 'fees', 'exams', 'results', 'notices',
           'homework', 'library', 'transport', 'events', 'documents',
-          'leaves'
+          'leaves', 'messages'
         ];
       }
     }

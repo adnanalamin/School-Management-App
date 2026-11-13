@@ -75,7 +75,8 @@ enum class Permission(val key: String, val description: String) {
 
     // Messaging
     MESSAGES_SEND("messages.send", "Send direct or group messages"),
-    MESSAGES_VIEW("messages.view", "Access communication channels");
+    MESSAGES_VIEW("messages.view", "Access communication channels"),
+    MESSAGES_MODERATE("messages.moderate", "Pin, archive, or remove communication threads");
 
     companion object {
         fun getPermissionsForRole(role: UserRole): Set<Permission> {
@@ -97,7 +98,7 @@ enum class Permission(val key: String, val description: String) {
                     EVENTS_VIEW, EVENTS_MANAGE,
                     DOCUMENTS_VIEW, DOCUMENTS_MANAGE,
                     LEAVES_APPLY, LEAVES_APPROVE,
-                    MESSAGES_VIEW, MESSAGES_SEND
+                    MESSAGES_VIEW, MESSAGES_SEND, MESSAGES_MODERATE
                 )
 
                 UserRole.TEACHER -> setOf(

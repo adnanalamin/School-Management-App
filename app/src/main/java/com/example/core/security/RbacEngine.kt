@@ -95,7 +95,8 @@ object RbacEngine {
         ),
         "Communication & Channels" to listOf(
             Permission.MESSAGES_VIEW,
-            Permission.MESSAGES_SEND
+            Permission.MESSAGES_SEND,
+            Permission.MESSAGES_MODERATE
         )
     )
 

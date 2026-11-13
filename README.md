@@ -94,12 +94,8 @@ app/src/main/java/com/example/
 - [x] **Phase 19: School Events & Academic Calendar** (COMPLETED)
 - [x] **Phase 20: Institutional Documents, Syllabi, ID Cards & Certificates** (COMPLETED)
 - [x] **Phase 21: Leave Request & Approval Workflow** (COMPLETED)
-- [ ] **Phase 22: Library Book Inventory & Lending**
-- [ ] **Phase 23: School Transport & Route Fleet**
-- [ ] **Phase 24: School Events & Academic Calendar**
-- [ ] **Phase 25: Documents, ID Cards & Certificates**
-- [ ] **Phase 26: Secure Internal Messaging System**
-- [ ] **Phase 27: Executive Reports & Data Analytics**
-- [ ] **Phase 28: School Customization & Branding Settings**
-- [ ] **Phase 29: Security Audit, Testing & Performance Tuning**
-- [ ] **Phase 30: Production Release & SaaS Distribution Preparation**
+- [x] **Phase 22: Secure Internal Messaging System** (COMPLETED)
+- [ ] **Phase 23: Executive Reports & Data Analytics**
+- [ ] **Phase 24: School Customization & Branding Settings**
+- [ ] **Phase 25: Security Audit, Testing & Performance Tuning**
+- [ ] **Phase 26: Production Release & SaaS Distribution Preparation**

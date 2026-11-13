@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.FolderShared
+import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Assignment
@@ -162,6 +163,13 @@ sealed class AppScreen(
         requiredPermission = Permission.LEAVES_APPLY
     )
 
+    data object Messages : AppScreen(
+        route = "messages",
+        title = "Internal Messaging",
+        icon = Icons.Default.Forum,
+        requiredPermission = Permission.MESSAGES_VIEW
+    )
+
     data object Profile : AppScreen(
         route = "profile",
         title = "Profile",
@@ -220,6 +228,7 @@ sealed class AppScreen(
                 Events.route -> Events
                 Documents.route -> Documents
                 Leaves.route -> Leaves
+                Messages.route -> Messages
                 Profile.route -> Profile
                 Settings.route -> Settings
                 DesignSystem.route -> DesignSystem

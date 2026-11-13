@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.FolderShared
+import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.LocalLibrary
 import androidx.compose.material.icons.filled.MeetingRoom
@@ -90,6 +91,7 @@ fun DashboardScreen(
     onNavigateToEvents: () -> Unit = {},
     onNavigateToDocuments: () -> Unit = {},
     onNavigateToLeaves: () -> Unit = {},
+    onNavigateToMessages: () -> Unit = {},
     onNavigateToProfile: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -338,6 +340,14 @@ fun DashboardScreen(
                             icon = Icons.Default.EventBusy,
                             onClick = onNavigateToLeaves,
                             testTag = "action_leaves"
+                        )
+                    }
+                    if (viewModel.hasPermission(Permission.MESSAGES_VIEW)) {
+                        QuickActionButton(
+                            label = "Messages",
+                            icon = Icons.Default.Forum,
+                            onClick = onNavigateToMessages,
+                            testTag = "action_messages"
                         )
                     }
                 }

@@ -79,6 +79,8 @@ import com.example.features.documents.presentation.DocumentScreen
 import com.example.features.documents.presentation.DocumentViewModel
 import com.example.features.leave.presentation.LeaveScreen
 import com.example.features.leave.presentation.LeaveViewModel
+import com.example.features.messages.presentation.MessageScreen
+import com.example.features.messages.presentation.MessageViewModel
 import com.example.features.splash.SplashScreen
 import com.example.features.splash.SplashViewModel
 import com.example.shared.components.EduBottomNavBar
@@ -115,6 +117,7 @@ fun AppNavGraph(
         AppScreen.Events.route,
         AppScreen.Documents.route,
         AppScreen.Leaves.route,
+        AppScreen.Messages.route,
         AppScreen.Settings.route
     )
 
@@ -267,6 +270,7 @@ fun AppNavGraph(
                     onNavigateToEvents = { safeNavigate(AppScreen.Events) },
                     onNavigateToDocuments = { safeNavigate(AppScreen.Documents) },
                     onNavigateToLeaves = { safeNavigate(AppScreen.Leaves) },
+                    onNavigateToMessages = { safeNavigate(AppScreen.Messages) },
                     onNavigateToProfile = { navController.navigate(AppScreen.Profile.route) }
                 )
             }
@@ -407,6 +411,16 @@ fun AppNavGraph(
                 val leaveViewModel: LeaveViewModel = viewModel()
                 LeaveScreen(
                     viewModel = leaveViewModel,
+                    onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
+                )
+            }
+
+            // Secure Internal Messaging System (Phase 22)
+            composable(AppScreen.Messages.route) {
+                BackHandler { safeNavigate(AppScreen.MainDashboard) }
+                val messageViewModel: MessageViewModel = viewModel()
+                MessageScreen(
+                    viewModel = messageViewModel,
                     onNavigateBack = { safeNavigate(AppScreen.MainDashboard) }
                 )
             }

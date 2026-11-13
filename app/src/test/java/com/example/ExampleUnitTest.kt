@@ -2966,5 +2966,157 @@ class ExampleUnitTest {
         vm.closeDetailDialog()
         assertFalse(vm.uiState.value.showDetailDialog)
     }
-}
 
+    @Test
+    fun verifyMessageThreadFirestoreSerializationAndHelpers() {
+        val thread = com.example.features.messages.domain.MessageThread(
+            id = "msg_test_01",
+            schoolId = "sch_oxford_01",
+            threadCode = "MSG-OXF-888",
+            subject = "Lab Coat Safety Protocol",
+            channelType = com.example.features.messages.domain.MessageChannelType.CLASS_CHANNEL,
+            priority = com.example.features.messages.domain.MessagePriority.IMPORTANT,
+            participantsLabel = "Dr. Sarah Jenkins • Grade 10 Science",
+            participantRoles = listOf("TEACHER", "STUDENT"),
+            messages = listOf(
+                com.example.features.messages.domain.ChatMessageEntry(
+                    id = "m_1",
+                    senderId = "tch_01",
+                    senderName = "Dr. Sarah Jenkins",
+                    senderRole = "Faculty",
+                    body = "Please bring goggles to tomorrow's optics lab.",
+                    sentAtLabel = "Today, 08:30 AM",
+                    timestamp = 1712647800000L
+                )
+            ),
+            unreadCount = 1,
+            isPinned = true,
+            isArchived = false,
+            lastActivityLabel = "Today, 08:30 AM",
+            createdAt = 1712647800000L,
+            updatedAt = 1712647800000L
+        )
+
+        assertTrue(thread.hasUnread)
+        assertEquals(1, thread.messageCount)
+        assertEquals("Please bring goggles to tomorrow's optics lab.", thread.latestMessagePreview)
+
+        val map = thread.toFirestoreMap()
+        val restored = com.example.features.messages.domain.MessageThread.fromFirestoreMap(
+            id = "msg_test_01",
+            schoolId = "sch_oxford_01",
+            data = map
+        )
+
+        assertEquals("MSG-OXF-888", restored.threadCode)
+        assertEquals("Lab Coat Safety Protocol", restored.subject)
+        assertEquals(com.example.features.messages.domain.MessageChannelType.CLASS_CHANNEL, restored.channelType)
+        assertEquals(com.example.features.messages.domain.MessagePriority.IMPORTANT, restored.priority)
+        assertEquals(1, restored.messages.size)
+        assertEquals("Dr. Sarah Jenkins", restored.messages.first().senderName)
+        assertTrue(restored.isPinned)
+        assertFalse(restored.isArchived)
+    }
+
+    @Test
+    fun verifyMessageRepositoryPreSeededThreadsAndTenantIsolation() {
+        val repo = com.example.features.messages.data.MessageRepository()
+
+        val oxfordThreads = repo.getPreSeededThreads("sch_oxford_01")
+        assertEquals(4, oxfordThreads.size)
+        assertTrue(oxfordThreads.all { it.schoolId == "sch_oxford_01" })
+        assertTrue(oxfordThreads.any { it.id == "msg_oxf_01" && it.hasUnread })
+
+        val cambridgeThreads = repo.getPreSeededThreads("sch_cambridge_101")
+        assertEquals(2, cambridgeThreads.size)
+        assertTrue(cambridgeThreads.all { it.schoolId == "sch_cambridge_101" })
+        assertTrue(cambridgeThreads.none { it.id.startsWith("msg_oxf") })
+
+        assertEquals("schools/sch_oxford_01/messages", com.example.core.tenant.TenantPathProvider.messagesPath("sch_oxford_01"))
+    }
+
+    @Test
+    fun verifyMessageViewModelFilteringComposeReplyModerationAndRbac() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.messages.presentation.MessageViewModel()
+
+        // Verify pre-seeded counts for Oxford
+        assertEquals(4, vm.uiState.value.totalThreadsCount)
+        assertEquals(3, vm.uiState.value.unreadMessagesTotal)
+        assertEquals(2, vm.uiState.value.pinnedCount)
+        assertEquals(7, vm.uiState.value.totalMessagesCount)
+
+        // Filtering tests
+        vm.setSearchQuery("Detour")
+        assertEquals(1, vm.uiState.value.filteredThreads.size)
+        assertEquals("msg_oxf_02", vm.uiState.value.filteredThreads.first().id)
+
+        vm.clearFilters()
+        vm.toggleOnlyUnreadFilter()
+        assertEquals(2, vm.uiState.value.filteredThreads.size)
+
+        vm.clearFilters()
+        vm.setChannelFilter(com.example.features.messages.domain.MessageChannelType.FACULTY_GROUP)
+        assertEquals(1, vm.uiState.value.filteredThreads.size)
+        assertEquals("msg_oxf_03", vm.uiState.value.filteredThreads.first().id)
+        vm.clearFilters()
+
+        // Opening an unread thread marks it read
+        val unreadThread = vm.uiState.value.threads.first { it.id == "msg_oxf_01" }
+        vm.openThread(unreadThread)
+        assertTrue(vm.uiState.value.showThreadDialog)
+        assertEquals(0, vm.uiState.value.threads.first { it.id == "msg_oxf_01" }.unreadCount)
+        assertEquals(1, vm.uiState.value.unreadMessagesTotal)
+        vm.closeThread()
+        assertFalse(vm.uiState.value.showThreadDialog)
+
+        // Switch to TEACHER role (has MESSAGES_SEND, lacks MESSAGES_MODERATE)
+        TenantContext.setTenant("sch_oxford_01", UserRole.TEACHER, "tch_oxf_001")
+        vm.openComposeDialog()
+        assertTrue(vm.uiState.value.showComposeDialog)
+        vm.createThread(
+            subject = "Chemistry Lab Coat Inspection",
+            channelType = com.example.features.messages.domain.MessageChannelType.CLASS_CHANNEL,
+            priority = com.example.features.messages.domain.MessagePriority.NORMAL,
+            participantsLabel = "Grade 10 - Section A",
+            initialMessageBody = "All students must bring lab coats on Wednesday."
+        )
+        assertFalse(vm.uiState.value.showComposeDialog)
+        assertEquals(5, vm.uiState.value.totalThreadsCount)
+
+        val newThread = vm.uiState.value.threads.first { it.subject == "Chemistry Lab Coat Inspection" }
+        assertEquals(1, newThread.messageCount)
+
+        // Student replies to the thread
+        TenantContext.setTenant("sch_oxford_01", UserRole.STUDENT, "stu_oxf_001")
+        vm.openThread(newThread)
+        vm.sendReply(newThread.id, "Understood, I will bring mine.")
+        assertEquals(2, vm.uiState.value.threads.first { it.id == newThread.id }.messageCount)
+        assertEquals("Understood, I will bring mine.", vm.uiState.value.threads.first { it.id == newThread.id }.latestMessagePreview)
+
+        // RBAC blocks Student from moderating (pinning, archiving, deleting)
+        vm.dismissStatusMessage()
+        vm.togglePin(newThread.id)
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+        assertFalse(vm.uiState.value.threads.first { it.id == newThread.id }.isPinned)
+
+        vm.dismissStatusMessage()
+        vm.toggleArchive(newThread.id)
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+        assertFalse(vm.uiState.value.threads.first { it.id == newThread.id }.isArchived)
+
+        // Switch back to SCHOOL_ADMIN to moderate (pin and archive)
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        vm.togglePin(newThread.id)
+        assertTrue(vm.uiState.value.threads.first { it.id == newThread.id }.isPinned)
+
+        vm.toggleArchive(newThread.id)
+        assertTrue(vm.uiState.value.threads.first { it.id == newThread.id }.isArchived)
+        assertEquals(4, vm.uiState.value.totalThreadsCount)
+        assertFalse(vm.uiState.value.filteredThreads.any { it.id == newThread.id })
+
+        vm.toggleIncludeArchived()
+        assertTrue(vm.uiState.value.filteredThreads.any { it.id == newThread.id })
+        vm.closeThread()
+    }
+}

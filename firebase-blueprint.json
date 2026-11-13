@@ -501,6 +501,35 @@
       },
       "required": ["id", "schoolId", "requestCode", "applicantName", "applicantType", "category", "startDate", "endDate", "status"]
     },
+    "InternalMessageThread": {
+      "title": "InternalMessageThread",
+      "description": "Tenant-isolated internal messaging conversation thread with role-scoped replies and moderation state",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "threadCode": { "type": "string" },
+        "subject": { "type": "string" },
+        "channelType": { "type": "string" },
+        "priority": { "type": "string" },
+        "participantsLabel": { "type": "string" },
+        "participantRoles": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "messages": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "unreadCount": { "type": "integer" },
+        "isPinned": { "type": "boolean" },
+        "isArchived": { "type": "boolean" },
+        "lastActivityLabel": { "type": "string" },
+        "createdAt": { "type": "integer" },
+        "updatedAt": { "type": "integer" }
+      },
+      "required": ["id", "schoolId", "threadCode", "subject", "channelType", "priority", "participantsLabel"]
+    },
     "TenantEntity": {
       "title": "TenantEntity",
       "description": "General representation of a tenant-scoped record in any of the 15 isolated subcollections",
@@ -589,6 +618,10 @@
     "/schools/{schoolId}/leaves/{leaveId}": {
       "schema": "LeaveRequest",
       "description": "Leave request applications and approval workflow logs"
+    },
+    "/schools/{schoolId}/messages/{threadId}": {
+      "schema": "InternalMessageThread",
+      "description": "Tenant-isolated internal communication threads and messages"
     }
   }
 }

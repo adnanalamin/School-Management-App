@@ -60,6 +60,22 @@ test("Authenticated user can read and write schools/{schoolId}/leaves", async ()
   await assertSucceeds(authDb.collection("schools/sch_oxford_01/leaves").get());
 });
 
+test("Authenticated user can read and write schools/{schoolId}/messages", async () => {
+  const authDb = testEnv.authenticatedContext("usr_teacher_1").firestore();
+  await assertSucceeds(
+    authDb.collection("schools/sch_oxford_01/messages").doc("msg_1").set({
+      id: "msg_1",
+      schoolId: "sch_oxford_01",
+      threadCode: "MSG-OXF-301",
+      subject: "Lab Schedule",
+    })
+  );
+  await assertSucceeds(authDb.collection("schools/sch_oxford_01/messages").get());
+
+  const unauthDb = testEnv.unauthenticatedContext().firestore();
+  await assertFails(unauthDb.collection("schools/sch_oxford_01/messages").get());
+});
+
 test("Authenticated user cannot access unknown subcollections", async () => {
   const authDb = testEnv.authenticatedContext("usr_student_1").firestore();
   await assertFails(authDb.collection("schools/sch_oxford_01/unknown_sub").get());
