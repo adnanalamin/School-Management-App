@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.example.core.security.Permission
@@ -222,6 +223,14 @@ sealed class AppScreen(
         icon = Icons.Default.Settings
     )
 
+    data object SecurityAudit : AppScreen(
+        route = "security_audit",
+        title = "Security Audit & Perf",
+        icon = Icons.Default.Security,
+        requiredPermission = Permission.SCHOOL_CONFIG_VIEW,
+        allowedRoles = setOf(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
+    )
+
     companion object {
         fun fromRoute(route: String?): AppScreen {
             return when (route?.substringBefore("?")) {
@@ -253,6 +262,7 @@ sealed class AppScreen(
                 Foundation.route -> Foundation
                 TenantArchitecture.route -> TenantArchitecture
                 RbacMatrix.route -> RbacMatrix
+                SecurityAudit.route -> SecurityAudit
                 else -> MainDashboard
             }
         }

@@ -85,6 +85,8 @@ import com.example.features.analytics.presentation.AnalyticsScreen
 import com.example.features.analytics.presentation.AnalyticsViewModel
 import com.example.features.branding.presentation.BrandingScreen
 import com.example.features.branding.presentation.BrandingViewModel
+import com.example.features.audit.presentation.SecurityAuditScreen
+import com.example.features.audit.presentation.SecurityAuditViewModel
 import com.example.features.splash.SplashScreen
 import com.example.features.splash.SplashViewModel
 import com.example.shared.components.EduBottomNavBar
@@ -480,7 +482,8 @@ fun AppNavGraph(
                     onNavigateToDesignSystem = { navController.navigate(AppScreen.DesignSystem.route) },
                     onNavigateToTenantArchitecture = { navController.navigate(AppScreen.TenantArchitecture.route) },
                     onNavigateToRbacMatrix = { navController.navigate(AppScreen.RbacMatrix.route) },
-                    onNavigateToBranding = { safeNavigate(AppScreen.Branding) }
+                    onNavigateToBranding = { safeNavigate(AppScreen.Branding) },
+                    onNavigateToSecurityAudit = { safeNavigate(AppScreen.SecurityAudit) }
                 )
             }
 
@@ -515,6 +518,16 @@ fun AppNavGraph(
                 BackHandler { navController.popBackStack() }
                 RbacMatrixScreen(
                     viewModel = rbacViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            // Security Audit, Testing & Performance Suite (Phase 25)
+            composable(AppScreen.SecurityAudit.route) {
+                val auditViewModel: SecurityAuditViewModel = viewModel()
+                BackHandler { navController.popBackStack() }
+                SecurityAuditScreen(
+                    viewModel = auditViewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

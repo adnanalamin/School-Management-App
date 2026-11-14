@@ -55,6 +55,7 @@ fun SettingsScreen(
     onNavigateToTenantArchitecture: () -> Unit = {},
     onNavigateToRbacMatrix: () -> Unit = {},
     onNavigateToBranding: () -> Unit = {},
+    onNavigateToSecurityAudit: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -278,10 +279,19 @@ fun SettingsScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     SettingClickableRow(
                         title = "RBAC & Permission Engine (Phase 7)",
-                        subtitle = "9 user roles, 36 granular permissions, active role switching & audit simulator",
+                        subtitle = "9 user roles, granular permissions, active role switching & audit simulator",
                         onClick = onNavigateToRbacMatrix,
                         testTag = "nav_to_rbac_matrix_link"
                     )
+                    if (com.example.core.security.TenantContext.hasPermission(com.example.core.security.Permission.SCHOOL_CONFIG_VIEW)) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        SettingClickableRow(
+                            title = "Security Audit & Performance Suite (Phase 25)",
+                            subtitle = "Cross-tenant firewall penetration probes, RBAC audit & latency benchmarks",
+                            onClick = onNavigateToSecurityAudit,
+                            testTag = "nav_to_security_audit_link"
+                        )
+                    }
                 }
             }
 

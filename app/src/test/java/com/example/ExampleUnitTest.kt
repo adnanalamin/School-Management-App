@@ -3442,4 +3442,96 @@ class ExampleUnitTest {
         )
         com.example.core.theme.BrandThemeController.resetToDefault()
     }
+
+    @Test
+    fun verifySecurityAuditEngineFullComplianceScoreAndBenchmarks() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val report = com.example.features.audit.data.SecurityAuditEngine.runComprehensiveAudit()
+
+        assertTrue(report.checks.isNotEmpty())
+        assertEquals(0, report.summary.criticalChecks)
+        assertEquals(0, report.summary.warningChecks)
+        assertEquals(100, report.summary.scorePercent)
+        assertEquals("A+", report.summary.gradeLabel)
+        assertEquals(report.summary.totalChecks, report.summary.passedChecks)
+
+        // Verify TenantContext was cleanly preserved after internal penetration probes
+        assertEquals("sch_oxford_01", TenantContext.activeSchoolId.value)
+        assertEquals(UserRole.SCHOOL_ADMIN, TenantContext.activeUserRole.value)
+        assertEquals("usr_admin_01", TenantContext.activeUserId.value)
+
+        // Verify micro-benchmark SLA (< 250ms total for 3,000 security/validation ops)
+        assertTrue(report.performanceMetrics.totalBenchmarkMs < 250.0)
+        assertEquals(Permission.entries.size, report.performanceMetrics.categorizedPermissionsCount)
+    }
+
+    @Test
+    fun verifyMultiTenantPathInjectionAndRouteGuardZeroTrustMatrix() {
+        val maliciousIds = listOf("", "   ", "../schools", "sch/oxford/..", "sch oxford", "a")
+        maliciousIds.forEach { badId ->
+            var thrown = false
+            try {
+                com.example.core.tenant.TenantPathProvider.validateSchoolId(badId)
+            } catch (_: AppError.SecurityViolation) {
+                thrown = true
+            }
+            assertTrue("Expected SecurityViolation for '$badId'", thrown)
+        }
+
+        // Verify Branding and SecurityAudit destinations block all non-admin roles
+        val nonAdminRoles = listOf(
+            UserRole.TEACHER,
+            UserRole.ACCOUNTANT,
+            UserRole.LIBRARIAN,
+            UserRole.TRANSPORT_MANAGER,
+            UserRole.STAFF,
+            UserRole.PARENT,
+            UserRole.STUDENT
+        )
+        nonAdminRoles.forEach { role ->
+            TenantContext.setTenant("sch_oxford_01", role, "usr_${role.name.lowercase()}")
+            assertTrue(
+                "Role $role must be blocked from Branding",
+                RouteGuard.evaluate(AppScreen.Branding) is RouteGuard.GuardResult.Redirect
+            )
+            assertTrue(
+                "Role $role must be blocked from SecurityAudit",
+                RouteGuard.evaluate(AppScreen.SecurityAudit) is RouteGuard.GuardResult.Redirect
+            )
+        }
+
+        listOf(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN).forEach { adminRole ->
+            TenantContext.setTenant("sch_oxford_01", adminRole, "usr_${adminRole.name.lowercase()}")
+            assertEquals(RouteGuard.GuardResult.Authorized, RouteGuard.evaluate(AppScreen.Branding))
+            assertEquals(RouteGuard.GuardResult.Authorized, RouteGuard.evaluate(AppScreen.SecurityAudit))
+        }
+    }
+
+    @Test
+    fun verifySecurityAuditViewModelFilteringReRunAndRbac() {
+        TenantContext.setTenant("sch_oxford_01", UserRole.SCHOOL_ADMIN, "usr_admin_01")
+        val vm = com.example.features.audit.presentation.SecurityAuditViewModel()
+
+        assertTrue(vm.uiState.value.checks.size >= 8)
+        assertEquals(vm.uiState.value.checks.size, vm.uiState.value.filteredChecks.size)
+
+        vm.selectCategory(com.example.features.audit.domain.AuditCategory.MULTI_TENANCY)
+        assertTrue(vm.uiState.value.filteredChecks.all {
+            it.category == com.example.features.audit.domain.AuditCategory.MULTI_TENANCY
+        })
+        assertEquals(3, vm.uiState.value.filteredChecks.size)
+
+        vm.selectCategory(com.example.features.audit.domain.AuditCategory.PERFORMANCE_TUNING)
+        assertEquals(2, vm.uiState.value.filteredChecks.size)
+
+        vm.selectCategory(null)
+        vm.runFullAudit(showFeedback = true)
+        assertTrue(vm.uiState.value.statusMessage?.contains("passed") == true)
+
+        // RBAC blocks non-admin roles from triggering audit
+        TenantContext.setTenant("sch_oxford_01", UserRole.TEACHER, "tch_oxf_001")
+        vm.dismissStatusMessage()
+        vm.runFullAudit(showFeedback = true)
+        assertTrue(vm.uiState.value.errorMessage?.contains("Unauthorized") == true)
+    }
 }

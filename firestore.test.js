@@ -108,6 +108,17 @@ test("Authenticated user can read and write schools/{schoolId}/branding", async 
   await assertFails(unauthDb.collection("schools/sch_oxford_01/branding").get());
 });
 
+test("Authenticated user cannot spoof foreign schoolId into tenant subcollection", async () => {
+  const authDb = testEnv.authenticatedContext("usr_admin_1").firestore();
+  await assertFails(
+    authDb.collection("schools/sch_oxford_01/students").doc("stu_spoof").set({
+      id: "stu_spoof",
+      schoolId: "sch_cambridge_101",
+      fullName: "Spoofed Tenant Student",
+    })
+  );
+});
+
 test("Authenticated user cannot access unknown subcollections", async () => {
   const authDb = testEnv.authenticatedContext("usr_student_1").firestore();
   await assertFails(authDb.collection("schools/sch_oxford_01/unknown_sub").get());

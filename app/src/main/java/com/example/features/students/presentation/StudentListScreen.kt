@@ -257,7 +257,7 @@ fun StudentListScreen(
                     }
                 }
             } else {
-                items(uiState.filteredStudents) { student ->
+                items(uiState.filteredStudents, key = { it.id }) { student ->
                     StudentCardItem(
                         student = student,
                         onClick = { viewModel.selectStudentForDetail(student) },

@@ -382,7 +382,7 @@ fun DashboardScreen(
                 )
             }
 
-            items(uiState.todaySessions) { session ->
+            items(uiState.todaySessions, key = { it.id }) { session ->
                 ClassSessionRow(session)
             }
 
@@ -395,7 +395,7 @@ fun DashboardScreen(
                 )
             }
 
-            items(uiState.recentNotices) { notice ->
+            items(uiState.recentNotices, key = { it.id }) { notice ->
                 NoticeCard(notice)
             }
 

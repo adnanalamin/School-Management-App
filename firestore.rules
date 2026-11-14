@@ -17,20 +17,29 @@ service cloud.firestore {
       allow delete: if isOwner(userId);
     }
 
-    // Multi-tenant school organizations & 15 subcollections
+    function isAllowedSubcollection(subcollection) {
+      return subcollection in [
+        'students', 'teachers', 'parents', 'classes', 'sections',
+        'attendance', 'fees', 'exams', 'results', 'notices',
+        'homework', 'library', 'transport', 'events', 'documents',
+        'leaves', 'messages', 'reports', 'branding'
+      ];
+    }
+
+    function isTenantMatched(schoolId) {
+      return request.resource.data.schoolId is string &&
+        request.resource.data.schoolId == schoolId;
+    }
+
+    // Multi-tenant school organizations & isolated subcollections
     match /schools/{schoolId} {
       allow read, create, update, delete: if isAuthenticated();
 
-      // 15 isolated subcollections under each tenant:
-      // students, teachers, parents, classes, sections, attendance, fees,
-      // exams, results, notices, homework, library, transport, events, documents
       match /{subcollection}/{docId} {
-        allow read, write: if isAuthenticated() && subcollection in [
-          'students', 'teachers', 'parents', 'classes', 'sections',
-          'attendance', 'fees', 'exams', 'results', 'notices',
-          'homework', 'library', 'transport', 'events', 'documents',
-          'leaves', 'messages', 'reports', 'branding'
-        ];
+        allow read, delete: if isAuthenticated() && isAllowedSubcollection(subcollection);
+        allow create, update: if isAuthenticated() &&
+          isAllowedSubcollection(subcollection) &&
+          isTenantMatched(schoolId);
       }
     }
   }

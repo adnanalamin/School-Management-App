@@ -410,7 +410,7 @@ fun RbacMatrixScreen(
 
             // Permissions List for Inspected Role
             val filteredPermissions = viewModel.getFilteredPermissions()
-            items(filteredPermissions) { perm ->
+            items(filteredPermissions, key = { it.name }) { perm ->
                 val isGranted = uiState.inspectedRolePermissions.contains(perm)
                 EduCard(testTag = "card_perm_${perm.name}") {
                     Row(

@@ -296,7 +296,7 @@ fun TenantArchitectureScreen(
             // Render documents based on active subcollection
             when (uiState.selectedSubcollection) {
                 "students" -> {
-                    items(uiState.students) { student ->
+                    items(uiState.students, key = { it.id }) { student ->
                         DocumentRow(
                             title = student.name,
                             subtitle = "Roll: ${student.rollNumber} • ${student.className} (${student.section})",
@@ -307,7 +307,7 @@ fun TenantArchitectureScreen(
                     }
                 }
                 "teachers" -> {
-                    items(uiState.teachers) { teacher ->
+                    items(uiState.teachers, key = { it.id }) { teacher ->
                         DocumentRow(
                             title = teacher.name,
                             subtitle = "ID: ${teacher.employeeId} • ${teacher.subject}",
@@ -318,7 +318,7 @@ fun TenantArchitectureScreen(
                     }
                 }
                 "fees" -> {
-                    items(uiState.fees) { fee ->
+                    items(uiState.fees, key = { it.id }) { fee ->
                         DocumentRow(
                             title = fee.title,
                             subtitle = "Student: ${fee.studentName} • Due: ${fee.dueDate}",
@@ -329,7 +329,7 @@ fun TenantArchitectureScreen(
                     }
                 }
                 "notices" -> {
-                    items(uiState.notices) { notice ->
+                    items(uiState.notices, key = { it.id }) { notice ->
                         DocumentRow(
                             title = notice.title,
                             subtitle = notice.content,
